@@ -1,0 +1,501 @@
+/* ---- 设计令牌：日光 IDE —— 冷灰纸面、白卡片、深青主色、指示灯反馈 ---- */
+:root {
+  --bg: #eceff3;
+  --card: #ffffff;
+  --border: #d8dee6;
+  --border-strong: #b9c3cf;
+  --ink: #1c2733;
+  --muted: #66788a;
+  --accent: #0b7261;
+  --accent-soft: #e3f1ed;
+  --ok: #18794e;
+  --danger: #b3261e;
+  --font-ui: system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', ui-monospace, 'SFMono-Regular', Consolas,
+    monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.layout {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.sidebar {
+  position: sticky;
+  top: 18px;
+  flex: 0 0 240px;
+  padding-top: 18px;
+}
+
+.page {
+  flex: 1;
+  min-width: 0;
+  padding: 0 0 80px;
+}
+
+/* ---- 顶栏 ---- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 2px 14px;
+  background: linear-gradient(to bottom, var(--bg) 82%, transparent);
+}
+
+.brand-name {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ---- 日历 ---- */
+.calendar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cal-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cal-nav {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.cal-nav:hover {
+  background: #e4e9ee;
+  color: var(--ink);
+}
+
+.cal-weekdays,
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.cal-weekdays {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cal-cell.empty {
+  cursor: default;
+}
+
+.cal-cell:not(.empty):hover {
+  background: #e4e9ee;
+}
+
+.cal-cell.today {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.cal-cell.selected {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.cal-cell.marked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+.cal-cell.selected.marked::after {
+  background: #fff;
+}
+
+.cal-foot {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.empty-hint {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 20px 2px;
+}
+
+/* ---- 按钮 ---- */
+.btn {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  padding: 9px 16px;
+}
+
+.btn.primary:hover {
+  background: #095e50;
+}
+
+.btn.quiet {
+  color: var(--muted);
+}
+
+.btn.quiet:hover {
+  background: #e4e9ee;
+  color: var(--ink);
+}
+
+.btn.quiet.danger:hover {
+  background: #f9e9e8;
+  color: var(--danger);
+}
+
+/* 复制按钮 = 指示灯：平时墨色，复制成功亮绿 */
+.btn.copy {
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+  min-width: 76px;
+}
+
+.btn.copy:hover:not(:disabled) {
+  background: #31404e;
+}
+
+.btn.copy:disabled {
+  background: #cfd6dd;
+  cursor: default;
+}
+
+.btn.copy.ok {
+  background: var(--ok);
+}
+
+/* ---- 卡片 ---- */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  animation: card-in 0.18s ease-out;
+}
+
+/* 签名元素：聚焦的卡片左缘亮起一条青色「当前行」光条 */
+.card::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.card:focus-within {
+  border-color: var(--border-strong);
+}
+
+.card:focus-within::before {
+  opacity: 1;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 0 16px;
+}
+
+.card-head .spacer {
+  flex: 1;
+}
+
+.meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.meta.pin-mark {
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.meta.busy {
+  color: var(--accent);
+}
+
+/* ---- 编辑器 ---- */
+.editor-wrap {
+  padding: 6px 16px 14px;
+}
+
+.editor-body {
+  min-height: 72px;
+  outline: none;
+  caret-color: var(--accent);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.editor-body p {
+  margin: 0 0 2px;
+}
+
+.editor-body p.is-editor-empty:first-child::before {
+  content: '写点什么…粘贴截图、拖入文件都会变成路径';
+  color: #a6b2be;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* 路径高亮：仍是普通文本，仅视觉标记 */
+.path-hl {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--accent-soft);
+  color: #0b5a4e;
+  border-radius: 4px;
+  padding: 1px 3px;
+}
+
+/* markdown 实时渲染：纯样式装饰，文本仍是原始 markdown 语法，复制原样输出 */
+.md-marker {
+  color: #b6bfc9;
+}
+
+.md-code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: #f1f3f5;
+  color: #a03e3e;
+  border-radius: 4px;
+  padding: 1px 3px;
+}
+
+.md-bold {
+  font-weight: 700;
+}
+
+.md-italic {
+  font-style: italic;
+}
+
+.md-strike {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.md-list-marker {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.editor-body p.md-quote {
+  border-left: 3px solid var(--border-strong);
+  padding-left: 10px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.editor-body p.md-code-block {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: #f1f3f5;
+  margin: 0;
+  padding: 0 8px;
+}
+
+.editor-body p.md-h1 {
+  font-size: 1.6em;
+  font-weight: 700;
+}
+
+.editor-body p.md-h2 {
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.editor-body p.md-h3 {
+  font-size: 1.22em;
+  font-weight: 700;
+}
+
+.editor-body p.md-h4 {
+  font-size: 1.1em;
+  font-weight: 700;
+}
+
+.editor-body p.md-h5 {
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.editor-body p.md-h6 {
+  font-size: 0.95em;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* 资产 chip：整体原子，一次退格删掉 */
+.asset-chip {
+  display: inline-flex;
+  vertical-align: middle;
+  margin: 2px 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f6f8fa;
+  padding: 3px;
+  cursor: default;
+  user-select: none;
+}
+
+.asset-chip.ProseMirror-selectednode {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.asset-thumb {
+  display: block;
+  max-height: 110px;
+  max-width: 260px;
+  border-radius: 5px;
+}
+
+.asset-file {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  padding: 3px 9px;
+  color: var(--ink);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: static;
+    flex-basis: auto;
+    width: 100%;
+    padding-top: 0;
+  }
+
+  .calendar {
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 560px) {
+  .card-head {
+    flex-wrap: wrap;
+  }
+}
