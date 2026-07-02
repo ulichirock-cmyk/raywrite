@@ -1,0 +1,28 @@
+# 推 v* tag 时自动构建并发布 Windows portable exe 到 GitHub Release。
+# 发新版：改 package.json version → git tag vX.Y.Z && git push origin vX.Y.Z
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # --publish never：发布交给下面的 action，别让 electron-builder 在 tag CI 上自作主张
+      - run: npm run dist -- --publish never
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+          generate_release_notes: true
