@@ -3,6 +3,7 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import Card from './components/Card.vue'
 import Calendar from './components/Calendar.vue'
 import { loadCards, saveCards, saveCardsBeacon } from './api'
+import { pathStyle, togglePathStyle } from './pathStyleStore'
 import { dateKey } from './date'
 
 const cards = ref([])
@@ -87,7 +88,16 @@ onBeforeUnmount(() => window.removeEventListener('pagehide', flushOnHide))
     <div class="page">
       <header class="topbar">
         <span class="brand-name">Ray Write</span>
-        <button class="btn primary" @click="newCard">＋ 新建输入框</button>
+        <span class="topbar-actions">
+          <button
+            class="btn quiet path-style"
+            :title="`复制出的路径风格：${pathStyle === 'win' ? 'Windows（C:\\...）' : 'WSL（/mnt/c/...）'}，点击切换`"
+            @click="togglePathStyle"
+          >
+            {{ pathStyle === 'win' ? 'Win' : 'WSL' }}
+          </button>
+          <button class="btn primary" @click="newCard">＋ 新建输入框</button>
+        </span>
       </header>
 
       <main v-if="loaded" class="cards">

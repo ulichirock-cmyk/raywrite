@@ -74,6 +74,26 @@ body {
   letter-spacing: -0.02em;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 路径风格开关：等宽字体标签，弱化底色，一眼看出当前输出的是 Win 还是 WSL */
+.btn.path-style {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 48px;
+  border: 1px solid var(--border-strong);
+  color: var(--accent);
+}
+
+.btn.path-style:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 /* ---- 日历 ---- */
 .calendar {
   background: var(--card);

@@ -5,9 +5,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const ROOT = path.resolve(__dirname, '..')
-const ASSETS_DIR = path.join(ROOT, 'assets')
-const DATA_DIR = path.join(ROOT, 'data')
+// 数据根（assets/、data/ 的父目录）：可用 AGENT_TEXT_ROOT 覆盖。
+// Electron 打包后 __dirname 落在只读的 app.asar 里，agent 也读不到，所以必须解耦。
+// 不设 env 时行为与原来完全一致（项目根）。
+const DATA_ROOT = process.env.AGENT_TEXT_ROOT
+  ? path.resolve(process.env.AGENT_TEXT_ROOT)
+  : path.resolve(__dirname, '..')
+const ASSETS_DIR = path.join(DATA_ROOT, 'assets')
+const DATA_DIR = path.join(DATA_ROOT, 'data')
 const CARDS_FILE = path.join(DATA_DIR, 'cards.json')
 const PORT = process.env.PORT || 7777
 
@@ -81,7 +86,8 @@ app.post('/api/cards', express.json({ limit: '20mb', type: () => true }), saveCa
 
 app.use('/assets', express.static(ASSETS_DIR))
 
-const DIST = path.join(ROOT, 'web', 'dist')
+// DIST 相对 __dirname：dist 随应用走（打包后在 app.asar 内），不受数据根影响
+const DIST = path.resolve(__dirname, '..', 'web', 'dist')
 if (fs.existsSync(DIST)) {
   app.use(express.static(DIST))
 }

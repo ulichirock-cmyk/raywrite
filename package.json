@@ -3,10 +3,30 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.mjs",
   "scripts": {
     "dev": "concurrently -k -n server,web \"node server/index.mjs\" \"vite\"",
     "build": "vite build",
-    "start": "node server/index.mjs"
+    "start": "node server/index.mjs",
+    "app": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.agenttext.app",
+    "productName": "agentText",
+    "files": [
+      "electron/**",
+      "server/**",
+      "web/dist/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "electron/icon.ico"
+    },
+    "portable": {
+      "artifactName": "agentText-${version}.exe"
+    }
   },
   "dependencies": {
     "@tiptap/core": "^2.14.0",
@@ -19,6 +39,8 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
     "concurrently": "^9.1.0",
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
     "vite": "^5.4.11"
   }
 }

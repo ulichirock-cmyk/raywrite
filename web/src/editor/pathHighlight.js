@@ -4,8 +4,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 const PATH_RE = new RegExp(
   [
-    // Windows 路径：C:\foo\bar
-    String.raw`[A-Za-z]:\\[^\s"'　<>|*?]+`,
+    // Windows 路径：C:\foo\bar 或 C:/foo/bar（正反斜杠都认）
+    String.raw`[A-Za-z]:[\\/][^\s"'　<>|*?]+`,
     // Unix 路径：/abs、~/home、./rel，可带 :行号；排除 URL 的 ://
     String.raw`(?<![\w:/])(?:~|\.{1,2})?/[\w.\-+@%~]+(?:/[\w.\-+@%~]+)*(?::\d+)?`,
     // 裸文件名：gauge.c:412、config.json

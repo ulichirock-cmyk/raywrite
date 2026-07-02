@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Extension } from '@tiptap/core'
@@ -7,6 +7,7 @@ import { AssetChip } from '../editor/assetChip'
 import { PathHighlight } from '../editor/pathHighlight'
 import { MarkdownDecorations } from '../editor/markdownDecorations'
 import { serializeText } from '../editor/serialize'
+import { pathStyle } from '../pathStyleStore'
 import { uploadFile } from '../api'
 
 const props = defineProps({
@@ -56,7 +57,7 @@ async function insertFiles(files) {
 
 async function doCopy() {
   if (!editor.value) return
-  const text = serializeText(editor.value)
+  const text = serializeText(editor.value, pathStyle.value)
   if (!text) return
   await navigator.clipboard.writeText(text)
   copied.value = true
@@ -119,12 +120,20 @@ onMounted(() => {
       },
     },
     onUpdate: ({ editor: ed }) => {
-      const text = serializeText(ed)
+      const text = serializeText(ed, pathStyle.value)
       charCount.value = text.length
       emit('change', { doc: ed.getJSON(), text })
     },
   })
-  charCount.value = serializeText(editor.value).length
+  charCount.value = serializeText(editor.value, pathStyle.value).length
+})
+
+// 切换全局路径风格时，重算字数并回写持久化 text（保证与复制出来的文本一致）
+watch(pathStyle, (style) => {
+  if (!editor.value) return
+  const text = serializeText(editor.value, style)
+  charCount.value = text.length
+  emit('change', { doc: editor.value.getJSON(), text })
 })
 
 onBeforeUnmount(() => {
