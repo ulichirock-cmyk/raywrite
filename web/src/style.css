@@ -1,3 +1,28 @@
+/* 卡片正文字体：随应用打包，不依赖系统是否装了 Nerd Font */
+@font-face {
+  font-family: '0xProto Nerd Font Mono';
+  src: url('/fonts/0xProtoNerdFontMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '0xProto Nerd Font Mono';
+  src: url('/fonts/0xProtoNerdFontMono-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '0xProto Nerd Font Mono';
+  src: url('/fonts/0xProtoNerdFontMono-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* ---- 设计令牌：日光 IDE —— 冷灰纸面、白卡片、深青主色、指示灯反馈 ---- */
 :root {
   --bg: #eceff3;
@@ -345,6 +370,7 @@ body {
   caret-color: var(--accent);
   white-space: pre-wrap;
   word-break: break-word;
+  font-family: '0xProto Nerd Font Mono', var(--font-mono);
 }
 
 .editor-body p {
