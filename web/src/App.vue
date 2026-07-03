@@ -2,8 +2,10 @@
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import Card from './components/Card.vue'
 import Calendar from './components/Calendar.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
 import { loadCards, saveCards, saveCardsBeacon } from './api'
 import { pathStyle, togglePathStyle } from './pathStyleStore'
+import { settings, FONT_STACKS } from './settingsStore'
 import { dateKey } from './date'
 
 const cards = ref([])
@@ -37,6 +39,12 @@ function newCard() {
 }
 
 const markedDates = computed(() => new Set(cards.value.map((c) => dateKey(c.createdAt))))
+
+// 卡片正文字体设置 → CSS 变量，.editor-body 消费
+const cardFontVars = computed(() => ({
+  '--card-font': FONT_STACKS[settings.fontFamily] || FONT_STACKS.mono,
+  '--card-font-size': settings.fontSize + 'px',
+}))
 
 const sorted = computed(() => {
   const list = selectedDate.value
@@ -91,7 +99,7 @@ onBeforeUnmount(() => window.removeEventListener('pagehide', flushOnHide))
 </script>
 
 <template>
-  <div class="layout">
+  <div class="layout" :style="cardFontVars">
     <aside class="sidebar">
       <Calendar v-model="selectedDate" :marked-dates="markedDates" />
     </aside>
@@ -107,6 +115,7 @@ onBeforeUnmount(() => window.removeEventListener('pagehide', flushOnHide))
           >
             {{ pathStyle === 'win' ? 'Win' : 'WSL' }}
           </button>
+          <SettingsPanel />
           <button class="btn primary" @click="newCard">＋ 新建输入框</button>
         </span>
       </header>

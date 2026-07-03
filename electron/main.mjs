@@ -115,6 +115,7 @@ if (runUpdateHandoff()) {
   })
 
   app.whenReady().then(async () => {
+    Menu.setApplicationMenu(null) // 去掉 File/Edit/View… 菜单栏（托盘菜单不受影响）
     await ensureServer()
     createWindow()
     createTray()

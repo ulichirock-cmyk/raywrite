@@ -294,6 +294,96 @@ body {
   background: var(--ok);
 }
 
+/* ---- 设置面板 ---- */
+.settings-root {
+  position: relative;
+  display: inline-flex;
+}
+
+.settings-btn svg {
+  display: block;
+}
+
+.settings-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: 240px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(28, 39, 51, 0.14);
+  padding: 14px 16px;
+}
+
+.settings-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.settings-item {
+  margin-bottom: 12px;
+}
+
+.settings-item label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.settings-item.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.settings-item.row label {
+  margin-bottom: 0;
+}
+
+.seg {
+  display: flex;
+  gap: 6px;
+}
+
+.seg-btn {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 5px 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.seg-btn.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.settings-panel input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.settings-panel input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+.settings-hint {
+  font-size: 11px;
+  color: #a6b2be;
+  margin: 0;
+}
+
 /* ---- 卡片 ---- */
 .cards {
   display: flex;
@@ -374,7 +464,46 @@ body {
   caret-color: var(--accent);
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: '0xProto Nerd Font Mono', var(--font-mono);
+  /* 字体/字号来自设置（App.vue 注入的 CSS 变量），默认等宽 15px */
+  font-family: var(--card-font, '0xProto Nerd Font Mono'), var(--font-mono);
+  font-size: var(--card-font-size, 15px);
+}
+
+/* 长文折叠：限高 + 底部渐隐，展开/收起由卡片底部按钮控制 */
+.editor-wrap.collapsed {
+  max-height: 260px;
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-wrap.collapsed::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--card));
+  pointer-events: none;
+}
+
+.expand-toggle {
+  display: block;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 5px 0 7px;
+  cursor: pointer;
+  border-radius: 0 0 10px 10px;
+}
+
+.expand-toggle:hover {
+  color: var(--accent);
+  background: #f4f7f9;
 }
 
 .editor-body p {

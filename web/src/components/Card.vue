@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Extension } from '@tiptap/core'
@@ -8,6 +8,7 @@ import { PathHighlight } from '../editor/pathHighlight'
 import { MarkdownDecorations } from '../editor/markdownDecorations'
 import { serializeText } from '../editor/serialize'
 import { pathStyle } from '../pathStyleStore'
+import { settings } from '../settingsStore'
 import { uploadFile } from '../api'
 
 const props = defineProps({
@@ -22,6 +23,14 @@ const charCount = ref(0)
 const uploadError = ref('')
 let copiedTimer = null
 let errorTimer = null
+
+// 长文折叠：内容实际高度超阈值才算 overflowing（ResizeObserver 盯编辑器 DOM，
+// 字号切换、编辑增删都会触发重测）；expanded 是本卡的临时展开态，不持久化
+const COLLAPSE_H = 260
+const overflowing = ref(false)
+const expanded = ref(false)
+let resizeOb = null
+const collapsed = computed(() => settings.collapseLong && overflowing.value && !expanded.value)
 
 // 首段是否为"纯 chip 行"（空段落也算，可直接往里插）：决定新 chip 是接在首段
 // 末尾，还是需要在最前面新起一段，从而让图片始终聚在文本上方而非插入正文中间。
@@ -130,6 +139,11 @@ onMounted(() => {
     },
   })
   charCount.value = serializeText(editor.value, pathStyle.value).length
+
+  resizeOb = new ResizeObserver(() => {
+    overflowing.value = editor.value.view.dom.offsetHeight > COLLAPSE_H
+  })
+  resizeOb.observe(editor.value.view.dom)
 })
 
 // 切换全局路径风格时，重算字数并回写持久化 text（保证与复制出来的文本一致）
@@ -143,6 +157,7 @@ watch(pathStyle, (style) => {
 onBeforeUnmount(() => {
   clearTimeout(copiedTimer)
   clearTimeout(errorTimer)
+  resizeOb?.disconnect()
   editor.value?.destroy()
 })
 </script>
@@ -164,6 +179,13 @@ onBeforeUnmount(() => {
       </button>
       <button class="btn quiet danger" @click="emit('delete')">删除</button>
     </header>
-    <EditorContent :editor="editor" class="editor-wrap" />
+    <EditorContent :editor="editor" class="editor-wrap" :class="{ collapsed }" />
+    <button
+      v-if="settings.collapseLong && overflowing"
+      class="expand-toggle"
+      @click="expanded = !expanded"
+    >
+      {{ expanded ? '收起 ▴' : '展开 ▾' }}
+    </button>
   </article>
 </template>
