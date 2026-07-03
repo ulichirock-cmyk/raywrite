@@ -432,6 +432,32 @@ body {
   margin: 0;
 }
 
+.settings-hint.error {
+  color: var(--danger);
+}
+
+/* 热键录制按钮：等宽字体显示组合键，录制中亮青色边框提示「正在等按键」 */
+.shortcut-btn {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.shortcut-btn:hover {
+  background: #e4e9ee;
+}
+
+.shortcut-btn.recording {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 /* ---- 卡片 ---- */
 .cards {
   display: flex;
@@ -642,8 +668,9 @@ body {
   color: var(--muted);
 }
 
-/* 资产 chip：整体原子，一次退格删掉 */
+/* 资产 chip：整体原子。悬浮出删除角标，不用再靠退格键删 */
 .asset-chip {
+  position: relative;
   display: inline-flex;
   vertical-align: middle;
   margin: 2px 3px;
@@ -658,6 +685,34 @@ body {
 .asset-chip.ProseMirror-selectednode {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.asset-chip-delete {
+  display: none;
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.asset-chip:hover .asset-chip-delete {
+  display: flex;
+}
+
+.asset-chip-delete:hover {
+  background: var(--danger);
 }
 
 .asset-thumb {

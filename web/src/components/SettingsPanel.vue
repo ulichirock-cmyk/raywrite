@@ -1,6 +1,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { settings, FONT_OPTIONS } from '../settingsStore'
+import { keyFromCode, formatAccelerator } from '../shortcutKeys'
 
 const open = ref(false)
 const root = ref(null)
@@ -10,6 +11,78 @@ function onDocClick(e) {
 }
 onMounted(() => document.addEventListener('click', onDocClick))
 onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
+
+// 全局热键：只有 Electron 壳（preload 注入了 window.agentText）才有。开发模式下
+// 浏览器里没有这个桥，用一个内存态的假实现顶上方便预览录制交互；生产构建里
+// import.meta.env.DEV 是编译期常量 false，这段连同判断会被摇树删掉
+const realShortcutApi = typeof window !== 'undefined' ? window.agentText?.shortcut : null
+let mockAccelerator = 'Control+Shift+Space'
+const devMockShortcutApi =
+  import.meta.env.DEV && !realShortcutApi
+    ? {
+        get: async () => mockAccelerator,
+        set: async (accelerator) => {
+          // 故意用这个组合当"注册失败"的测试路径（Escape 会被录制逻辑拦成"取消"，
+          // 所以这里选一个真的能录进来的组合）
+          if (accelerator === 'Control+Shift+F1') return { ok: false, accelerator: mockAccelerator }
+          mockAccelerator = accelerator
+          console.info('[SettingsPanel] mock: shortcut ->', accelerator)
+          return { ok: true, accelerator }
+        },
+      }
+    : null
+const shortcutApi = realShortcutApi || devMockShortcutApi
+const shortcut = ref('')
+const recording = ref(false)
+const shortcutError = ref(false)
+
+onMounted(async () => {
+  if (!shortcutApi) return
+  try {
+    shortcut.value = await shortcutApi.get()
+  } catch {}
+})
+
+function startRecording() {
+  if (!shortcutApi || recording.value) return
+  recording.value = true
+  shortcutError.value = false
+  window.addEventListener('keydown', onRecordKey, true)
+}
+
+function stopRecording() {
+  recording.value = false
+  window.removeEventListener('keydown', onRecordKey, true)
+}
+
+async function onRecordKey(e) {
+  e.preventDefault()
+  e.stopPropagation()
+  if (e.key === 'Escape') {
+    stopRecording()
+    return
+  }
+  if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return // 光按住修饰键不算，等主键
+
+  const mods = []
+  if (e.ctrlKey) mods.push('Control')
+  if (e.altKey) mods.push('Alt')
+  if (e.shiftKey) mods.push('Shift')
+  if (e.metaKey) mods.push('Super')
+  const key = keyFromCode(e.code)
+  // 要求至少一个修饰键，否则全局热键会把这个键在所有程序里都吃掉
+  if (!mods.length || !key) {
+    shortcutError.value = true
+    stopRecording()
+    return
+  }
+
+  stopRecording()
+  const accelerator = [...mods, key].join('+')
+  const res = await shortcutApi.set(accelerator)
+  shortcut.value = res.accelerator
+  shortcutError.value = !res.ok
+}
 </script>
 
 <template>
@@ -60,6 +133,16 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
         <input v-model="settings.collapseLong" type="checkbox" />
       </div>
       <p class="settings-hint">开启后过长的卡片会折叠显示，底部可展开/收起。</p>
+
+      <div v-if="shortcutApi" class="settings-item">
+        <label>全局热键（呼出窗口）</label>
+        <button class="btn quiet shortcut-btn" :class="{ recording }" @click="startRecording">
+          {{ recording ? '按下新组合…（Esc 取消）' : formatAccelerator(shortcut) }}
+        </button>
+        <p class="settings-hint" :class="{ error: shortcutError }">
+          {{ shortcutError ? '这个组合注册失败，可能被其他程序占用，已还原' : '任何界面下按这个组合都能唤出窗口' }}
+        </p>
+      </div>
     </div>
   </span>
 </template>

@@ -13,4 +13,8 @@ contextBridge.exposeInMainWorld('agentText', {
       return () => ipcRenderer.removeListener('updater:status', handler)
     },
   },
+  shortcut: {
+    get: () => ipcRenderer.invoke('shortcut:get'),
+    set: (accelerator) => ipcRenderer.invoke('shortcut:set', accelerator),
+  },
 })

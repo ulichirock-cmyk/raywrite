@@ -4,6 +4,7 @@ import os from 'node:os'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { initUpdater, checkForUpdate, runUpdateHandoff, getUpdaterStatus, openDownloadPage } from './updater.mjs'
+import { initShortcut, getShortcut, setShortcut } from './shortcut.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 7777
@@ -87,16 +88,26 @@ function createWindow() {
   })
 }
 
+// 托盘点击、全局热键、Dock 图标点击（macOS activate）共用：窗口在就带到前台，不在就新建
+function showWindow() {
+  if (win) {
+    win.show()
+    win.focus()
+  } else {
+    createWindow()
+  }
+}
+
 function createTray() {
   tray = new Tray(makeTrayIcon())
   tray.setToolTip('agentText')
   const menu = Menu.buildFromTemplate([
-    { label: '显示', click: () => (win ? (win.show(), win.focus()) : createWindow()) },
+    { label: '显示', click: showWindow },
     { label: '检查更新', click: () => checkForUpdate(true).catch(() => {}) },
     { label: '退出', click: quitApp },
   ])
   tray.setContextMenu(menu)
-  tray.on('click', () => (win ? (win.show(), win.focus()) : createWindow()))
+  tray.on('click', showWindow)
 }
 
 // 更新接力：若本进程是刚下载的新版 exe 且有替换协议，只做替换后自退，不进正常启动
@@ -120,12 +131,17 @@ if (runUpdateHandoff()) {
   ipcMain.handle('updater:restart', () => quitApp())
   ipcMain.handle('updater:open-download', () => openDownloadPage())
 
+  // 全局热键：设置面板改绑走这两个 IPC（见 web/src/components/SettingsPanel.vue）
+  ipcMain.handle('shortcut:get', () => getShortcut())
+  ipcMain.handle('shortcut:set', (_e, accelerator) => setShortcut(accelerator))
+
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null) // 去掉 File/Edit/View… 菜单栏（托盘菜单不受影响）
     await ensureServer()
     createWindow()
     createTray()
     initUpdater({ getWin: () => win, quitApp }) // 打包形态下启动 5s 后静默检查一次 + 每 6h 一次
+    initShortcut({ getDataRoot: () => DATA_ROOT, showWindow })
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
