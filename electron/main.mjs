@@ -3,7 +3,7 @@ import path from 'node:path'
 import os from 'node:os'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
-import { initUpdater, checkForUpdate } from './updater.mjs'
+import { initUpdater, checkForUpdate, runUpdateHandoff } from './updater.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 7777
@@ -99,8 +99,11 @@ function createTray() {
   tray.on('click', () => (win ? (win.show(), win.focus()) : createWindow()))
 }
 
-// 单实例：二次启动聚焦已有窗口
-if (!app.requestSingleInstanceLock()) {
+// 更新接力：若本进程是刚下载的新版 exe 且有替换协议，只做替换后自退，不进正常启动
+if (runUpdateHandoff()) {
+  // 替换逻辑完成后自行 app.exit()
+} else if (!app.requestSingleInstanceLock()) {
+  // 单实例：二次启动聚焦已有窗口
   app.quit()
 } else {
   app.on('second-instance', () => {
