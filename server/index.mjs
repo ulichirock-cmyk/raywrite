@@ -14,7 +14,16 @@ const DATA_ROOT = process.env.AGENT_TEXT_ROOT
 const ASSETS_DIR = path.join(DATA_ROOT, 'assets')
 const DATA_DIR = path.join(DATA_ROOT, 'data')
 const CARDS_FILE = path.join(DATA_DIR, 'cards.json')
+// 跟 electron/shortcut.mjs 共用同一个文件（它存 globalShortcut，这里存 deepseekApiKey）——
+// 单用户本地工具，两边都是低频写入，不做并发保护
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json')
 const PORT = process.env.PORT || 7777
+const POLISH_MODEL = 'deepseek-v4-flash'
+const POLISH_SYSTEM_PROMPT = `你是一个提示词编辑助手。用户会给你一段写给 AI coding agent（比如 Claude Code）的粗略笔记，
+可能杂乱、口语化、不完整。把它整理成一段清晰、结构化、可直接使用的提示词：明确目标、必要背景、约束条件，去掉多余口语，
+但不要凭空编造用户没提到的信息。保持原文使用的语言（中文原文就用中文整理，英文原文就用英文整理）。
+如果原文中出现形如 [[chip:N]]（N 为数字）的占位符标记，原样保留在合适的位置，不要删除、拆分、翻译或改写它们，也不要新增这类标记。
+只输出整理后的提示词正文，不要输出任何解释、前后缀说明，也不要用 markdown 代码块包裹。`
 
 fs.mkdirSync(ASSETS_DIR, { recursive: true })
 fs.mkdirSync(DATA_DIR, { recursive: true })
@@ -84,6 +93,72 @@ app.put('/api/cards', express.json({ limit: '20mb' }), saveCards)
 // sendBeacon 只能 POST，页面关闭前的兜底保存走这里
 app.post('/api/cards', express.json({ limit: '20mb', type: () => true }), saveCards)
 
+function readSettings() {
+  try {
+    return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+function writeSettings(patch) {
+  const next = { ...readSettings(), ...patch }
+  const tmp = SETTINGS_FILE + '.tmp'
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2))
+  fs.renameSync(tmp, SETTINGS_FILE)
+}
+
+// 只回报「有没有配」，API Key 本身不回传给前端——没必要让它在网络响应里再走一趟
+app.get('/api/settings', (_req, res) => {
+  res.json({ hasApiKey: Boolean(readSettings().deepseekApiKey) })
+})
+
+app.put('/api/settings', express.json(), (req, res) => {
+  const key = String(req.body?.deepseekApiKey || '').trim()
+  if (key) writeSettings({ deepseekApiKey: key })
+  res.json({ hasApiKey: Boolean(readSettings().deepseekApiKey) })
+})
+
+// 把卡片草稿丢给 DeepSeek 整理成结构清晰的提示词；chip（图片/文件）在发给前端前已
+// 被替换成 [[chip:N]] 占位符，这里原样透传，由前端负责把占位符换回真正的 chip。
+// deepseek-v4-flash 是 OpenAI ChatCompletions 兼容接口，thinking+reasoning_effort:max 开满推理力度
+app.post('/api/polish', express.json({ limit: '1mb' }), async (req, res) => {
+  const text = String(req.body?.text || '').trim()
+  if (!text) return res.status(400).json({ error: '内容为空' })
+  const apiKey = readSettings().deepseekApiKey
+  if (!apiKey) return res.status(400).json({ error: '还没在设置里填 DeepSeek API Key' })
+
+  try {
+    const r = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: POLISH_MODEL,
+        messages: [
+          { role: 'system', content: POLISH_SYSTEM_PROMPT },
+          { role: 'user', content: text },
+        ],
+        thinking: { type: 'enabled' },
+        reasoning_effort: 'max',
+        stream: false,
+      }),
+    })
+    if (!r.ok) {
+      const detail = await r.text().catch(() => '')
+      return res.status(502).json({ error: `AI 请求失败（HTTP ${r.status}）`, detail })
+    }
+    const data = await r.json()
+    const polished = data.choices?.[0]?.message?.content || ''
+    if (!polished) return res.status(502).json({ error: 'AI 没有返回内容' })
+    res.json({ text: polished })
+  } catch (err) {
+    res.status(502).json({ error: String(err?.message || err) })
+  }
+})
+
 app.use('/assets', express.static(ASSETS_DIR))
 
 // DIST 相对 __dirname：dist 随应用走（打包后在 app.asar 内），不受数据根影响
@@ -92,7 +167,9 @@ if (fs.existsSync(DIST)) {
   app.use(express.static(DIST))
 }
 
-app.listen(PORT, () => {
+// 只监听回环地址：单用户本地工具，没有理由让局域网内其他设备摸到——
+// 尤其现在 /api/polish 会拿本机配置的 API Key 转发请求，不锁会被白嫖额度
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`agentText: http://localhost:${PORT}`)
   if (!fs.existsSync(DIST)) {
     console.log('（未找到 web/dist，开发模式请另开 vite：npm run dev）')

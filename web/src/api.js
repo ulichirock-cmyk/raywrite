@@ -26,3 +26,30 @@ export async function uploadFile(file) {
   if (!res.ok) throw new Error(`上传失败: ${res.status}`)
   return res.json()
 }
+
+export async function getSettings() {
+  const res = await fetch('/api/settings')
+  if (!res.ok) throw new Error(`加载设置失败: ${res.status}`)
+  return res.json()
+}
+
+export async function saveApiKey(deepseekApiKey) {
+  const res = await fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ deepseekApiKey }),
+  })
+  if (!res.ok) throw new Error(`保存失败: ${res.status}`)
+  return res.json()
+}
+
+export async function polishText(text) {
+  const res = await fetch('/api/polish', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `整理失败: ${res.status}`)
+  return data.text
+}

@@ -7,9 +7,11 @@ import { AssetChip } from '../editor/assetChip'
 import { PathHighlight } from '../editor/pathHighlight'
 import { MarkdownDecorations } from '../editor/markdownDecorations'
 import { serializeText } from '../editor/serialize'
+import { serializeForAI, buildDocFromAIText } from '../editor/aiPolish'
 import { pathStyle } from '../pathStyleStore'
 import { settings } from '../settingsStore'
-import { uploadFile } from '../api'
+import { aiSettings } from '../aiStore'
+import { uploadFile, polishText } from '../api'
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -21,8 +23,11 @@ const copied = ref(false)
 const uploading = ref(0)
 const charCount = ref(0)
 const uploadError = ref('')
+const polishing = ref(false)
+const polishError = ref('')
 let copiedTimer = null
 let errorTimer = null
+let polishErrorTimer = null
 
 // 长文折叠：内容实际高度超阈值才算 overflowing（ResizeObserver 盯编辑器 DOM，
 // 字号切换、编辑增删都会触发重测）；expanded 是本卡的临时展开态，不持久化
@@ -76,6 +81,26 @@ async function doCopy() {
   copied.value = true
   clearTimeout(copiedTimer)
   copiedTimer = setTimeout(() => (copied.value = false), 1400)
+}
+
+// 把卡片草稿丢给 AI 整理成结构清晰的提示词——chip（图片/文件）先换成占位符
+// 送出去，拿到结果后再换回真正的 chip，不会因为整理丢图
+async function doPolish() {
+  if (!editor.value || polishing.value || !charCount.value) return
+  polishing.value = true
+  try {
+    const { text, chips } = serializeForAI(editor.value)
+    const result = await polishText(text)
+    const doc = buildDocFromAIText(result, chips)
+    editor.value.commands.setContent(doc, true)
+  } catch (e) {
+    console.error(e)
+    polishError.value = e?.message || '整理失败'
+    clearTimeout(polishErrorTimer)
+    polishErrorTimer = setTimeout(() => (polishError.value = ''), 4000)
+  } finally {
+    polishing.value = false
+  }
 }
 
 function fmtTime(iso) {
@@ -157,6 +182,7 @@ watch(pathStyle, (style) => {
 onBeforeUnmount(() => {
   clearTimeout(copiedTimer)
   clearTimeout(errorTimer)
+  clearTimeout(polishErrorTimer)
   resizeOb?.disconnect()
   editor.value?.destroy()
 })
@@ -169,8 +195,17 @@ onBeforeUnmount(() => {
       <span v-if="card.pinned" class="meta pin-mark">置顶</span>
       <span v-if="uploading" class="meta busy">上传中…</span>
       <span v-if="uploadError" class="meta upload-error">{{ uploadError }}</span>
+      <span v-if="polishError" class="meta upload-error">{{ polishError }}</span>
       <span class="spacer"></span>
       <span v-if="charCount" class="meta">{{ charCount }} 字</span>
+      <button
+        class="btn quiet"
+        :disabled="!charCount || polishing || !aiSettings.hasApiKey"
+        :title="aiSettings.hasApiKey ? 'AI 把这张卡片整理成结构清晰的提示词' : '先在设置里填 Anthropic API Key'"
+        @click="doPolish"
+      >
+        {{ polishing ? '整理中…' : 'AI 整理' }}
+      </button>
       <button class="btn copy" :class="{ ok: copied }" :disabled="!charCount" @click="doCopy">
         {{ copied ? '已复制 ✓' : '复制' }}
       </button>

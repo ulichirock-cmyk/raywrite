@@ -458,6 +458,41 @@ body {
   background: var(--accent-soft);
 }
 
+/* API Key 输入行：输入框 + 保存按钮 */
+.apikey-row {
+  display: flex;
+  gap: 6px;
+}
+
+.apikey-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.apikey-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.apikey-input::placeholder {
+  color: #a6b2be;
+}
+
+.apikey-save {
+  flex: none;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
 /* ---- 卡片 ---- */
 .cards {
   display: flex;

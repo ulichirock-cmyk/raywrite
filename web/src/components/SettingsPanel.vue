@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { settings, FONT_OPTIONS } from '../settingsStore'
 import { keyFromCode, formatAccelerator } from '../shortcutKeys'
+import { aiSettings, refreshAiSettings } from '../aiStore'
+import { saveApiKey } from '../api'
 
 const open = ref(false)
 const root = ref(null)
@@ -83,6 +85,28 @@ async function onRecordKey(e) {
   shortcut.value = res.accelerator
   shortcutError.value = !res.ok
 }
+
+// API Key 保存后不回显——只告诉你「已设置」，输入框留空就是不改动
+const apiKeyInput = ref('')
+const apiKeySaving = ref(false)
+const apiKeySaved = ref(false)
+
+async function onSaveApiKey() {
+  const key = apiKeyInput.value.trim()
+  if (!key || apiKeySaving.value) return
+  apiKeySaving.value = true
+  try {
+    await saveApiKey(key)
+    await refreshAiSettings()
+    apiKeyInput.value = ''
+    apiKeySaved.value = true
+    setTimeout(() => (apiKeySaved.value = false), 1600)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    apiKeySaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -141,6 +165,31 @@ async function onRecordKey(e) {
         </button>
         <p class="settings-hint" :class="{ error: shortcutError }">
           {{ shortcutError ? '这个组合注册失败，可能被其他程序占用，已还原' : '任何界面下按这个组合都能唤出窗口' }}
+        </p>
+      </div>
+
+      <div class="settings-item">
+        <label>DeepSeek API Key（AI 整理提示词用）</label>
+        <div class="apikey-row">
+          <input
+            v-model="apiKeyInput"
+            type="password"
+            class="apikey-input"
+            autocomplete="off"
+            :placeholder="aiSettings.hasApiKey ? '已设置，输入新的可覆盖' : 'sk-...'"
+            @keydown.enter="onSaveApiKey"
+          />
+          <button
+            class="btn quiet apikey-save"
+            :disabled="!apiKeyInput.trim() || apiKeySaving"
+            @click="onSaveApiKey"
+          >
+            {{ apiKeySaved ? '已保存 ✓' : '保存' }}
+          </button>
+        </div>
+        <p class="settings-hint">
+          {{ aiSettings.hasApiKey ? '已配置，卡片右上角可用「AI 整理」。' : '配置后卡片才能用「AI 整理」。' }}
+          Key 只存本地，不会上传。
         </p>
       </div>
     </div>

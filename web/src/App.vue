@@ -7,6 +7,7 @@ import UpdateBanner from './components/UpdateBanner.vue'
 import { loadCards, saveCards, saveCardsBeacon } from './api'
 import { pathStyle, togglePathStyle } from './pathStyleStore'
 import { settings, FONT_STACKS } from './settingsStore'
+import { refreshAiSettings } from './aiStore'
 import { dateKey } from './date'
 
 const cards = ref([])
@@ -117,6 +118,7 @@ function onTogglePin(card) {
 }
 
 onMounted(async () => {
+  refreshAiSettings()
   try {
     const data = await loadCards()
     cards.value = data.cards || []
