@@ -1,9 +1,9 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
-import { initUpdater, checkForUpdate, runUpdateHandoff } from './updater.mjs'
+import { initUpdater, checkForUpdate, runUpdateHandoff, getUpdaterStatus, openDownloadPage } from './updater.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 7777
@@ -74,7 +74,7 @@ function createWindow() {
     height: 800,
     title: 'agentText',
     icon: path.join(__dirname, 'icon.png'), // 开发模式窗口/任务栏图标；打包后 exe 图标由 build.win.icon 生效
-    webPreferences: { contextIsolation: true },
+    webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.cjs') },
   })
   win.loadURL(`http://127.0.0.1:${PORT}`)
 
@@ -113,6 +113,12 @@ if (runUpdateHandoff()) {
       win.focus()
     }
   })
+
+  // 更新状态走 IPC 推给页面右下角提示条（见 web/src/components/UpdateBanner.vue），
+  // 不用原生 dialog——那会打断用户正在做的事
+  ipcMain.handle('updater:get-status', () => getUpdaterStatus())
+  ipcMain.handle('updater:restart', () => quitApp())
+  ipcMain.handle('updater:open-download', () => openDownloadPage())
 
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null) // 去掉 File/Edit/View… 菜单栏（托盘菜单不受影响）

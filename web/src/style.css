@@ -119,6 +119,54 @@ body {
   color: var(--accent);
 }
 
+/* ---- 搜索框：常驻顶栏，全局匹配卡片文本 ---- */
+.search-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.search-input {
+  width: 180px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 7px 26px 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--ink);
+  transition: border-color 0.15s, width 0.15s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  width: 220px;
+}
+
+.search-input::placeholder {
+  color: #a6b2be;
+}
+
+.search-clear {
+  position: absolute;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.search-clear:hover {
+  background: #e4e9ee;
+  color: var(--ink);
+}
+
 /* ---- 日历 ---- */
 .calendar {
   background: var(--card);
@@ -664,5 +712,137 @@ body {
 @media (max-width: 560px) {
   .card-head {
     flex-wrap: wrap;
+  }
+
+  .search-input {
+    width: 110px;
+  }
+
+  .search-input:focus {
+    width: 150px;
+  }
+}
+
+/* ---- 更新提示条：右下角悬浮，不遮内容、不弹模态框 ---- */
+.update-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(28, 39, 51, 0.16);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.update-toast.downloading {
+  padding-bottom: 13px;
+}
+
+.update-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-pct {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-left: 4px;
+}
+
+.update-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--border);
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.update-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.update-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
+.update-dot.ok {
+  background: var(--ok);
+}
+
+.update-dot.err {
+  background: var(--danger);
+}
+
+.update-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  flex: none;
+  animation: update-spin 0.8s linear infinite;
+}
+
+@keyframes update-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.update-action {
+  padding: 5px 10px;
+  font-size: 12px;
+  flex: none;
+}
+
+.update-close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 5px;
+  flex: none;
+}
+
+.update-close:hover {
+  background: #e4e9ee;
+  color: var(--ink);
+}
+
+.update-toast-enter-active,
+.update-toast-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.update-toast-enter-from,
+.update-toast-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-spinner {
+    animation: none;
   }
 }
