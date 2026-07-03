@@ -399,26 +399,14 @@ body {
   animation: card-in 0.18s ease-out;
 }
 
-/* 签名元素：聚焦的卡片左缘亮起一条青色「当前行」光条 */
-.card::before {
-  content: '';
-  position: absolute;
-  left: -1px;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--accent);
-  opacity: 0;
-  transition: opacity 0.15s;
+/* 签名元素：聚焦的卡片整圈边框亮起青色 */
+.card {
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .card:focus-within {
-  border-color: var(--border-strong);
-}
-
-.card:focus-within::before {
-  opacity: 1;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .card-head {
