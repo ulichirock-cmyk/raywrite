@@ -3,6 +3,7 @@ import path from 'node:path'
 import os from 'node:os'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
+import { initUpdater, checkForUpdate } from './updater.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 7777
@@ -18,6 +19,14 @@ const DATA_ROOT = process.env.AGENT_TEXT_ROOT
 let win = null
 let tray = null
 let quitting = false
+
+// 统一退出：先 close 让页面 pagehide 的 sendBeacon 兜底保存打到本地 server，再退出
+// （托盘「退出」和更新器「立即重启」共用）
+function quitApp() {
+  quitting = true
+  if (win) win.close()
+  setTimeout(() => app.quit(), 300)
+}
 
 // 探测端口上是否已有 server 在跑（用户可能单独 npm start 了）——有则复用，别重复起
 function probeServer() {
@@ -83,15 +92,8 @@ function createTray() {
   tray.setToolTip('agentText')
   const menu = Menu.buildFromTemplate([
     { label: '显示', click: () => (win ? (win.show(), win.focus()) : createWindow()) },
-    {
-      label: '退出',
-      click: () => {
-        quitting = true
-        // 先 close 让页面 pagehide 的 sendBeacon 兜底保存打到本地 server，再退出
-        if (win) win.close()
-        setTimeout(() => app.quit(), 300)
-      },
-    },
+    { label: '检查更新', click: () => checkForUpdate(true).catch(() => {}) },
+    { label: '退出', click: quitApp },
   ])
   tray.setContextMenu(menu)
   tray.on('click', () => (win ? (win.show(), win.focus()) : createWindow()))
@@ -113,6 +115,7 @@ if (!app.requestSingleInstanceLock()) {
     await ensureServer()
     createWindow()
     createTray()
+    initUpdater({ getWin: () => win, quitApp }) // 打包形态下启动 5s 后静默检查一次 + 每 6h 一次
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
