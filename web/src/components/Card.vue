@@ -19,7 +19,9 @@ const editor = shallowRef(null)
 const copied = ref(false)
 const uploading = ref(0)
 const charCount = ref(0)
+const uploadError = ref('')
 let copiedTimer = null
+let errorTimer = null
 
 // 首段是否为"纯 chip 行"（空段落也算，可直接往里插）：决定新 chip 是接在首段
 // 末尾，还是需要在最前面新起一段，从而让图片始终聚在文本上方而非插入正文中间。
@@ -48,7 +50,9 @@ async function insertFiles(files) {
       }
     } catch (e) {
       console.error(e)
-      alert(`上传失败：${file.name || '剪贴板图片'}`)
+      uploadError.value = `上传失败：${file.name || '剪贴板图片'}`
+      clearTimeout(errorTimer)
+      errorTimer = setTimeout(() => (uploadError.value = ''), 4000)
     } finally {
       uploading.value--
     }
@@ -138,6 +142,7 @@ watch(pathStyle, (style) => {
 
 onBeforeUnmount(() => {
   clearTimeout(copiedTimer)
+  clearTimeout(errorTimer)
   editor.value?.destroy()
 })
 </script>
@@ -148,6 +153,7 @@ onBeforeUnmount(() => {
       <span class="meta">{{ fmtTime(card.createdAt) }}</span>
       <span v-if="card.pinned" class="meta pin-mark">置顶</span>
       <span v-if="uploading" class="meta busy">上传中…</span>
+      <span v-if="uploadError" class="meta upload-error">{{ uploadError }}</span>
       <span class="spacer"></span>
       <span v-if="charCount" class="meta">{{ charCount }} 字</span>
       <button class="btn copy" :class="{ ok: copied }" :disabled="!charCount" @click="doCopy">

@@ -359,6 +359,10 @@ body {
   color: var(--accent);
 }
 
+.meta.upload-error {
+  color: var(--danger);
+}
+
 /* ---- 编辑器 ---- */
 .editor-wrap {
   padding: 6px 16px 14px;

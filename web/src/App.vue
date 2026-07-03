@@ -54,9 +54,20 @@ function onChange(card, { doc, text }) {
 }
 
 function onDelete(card) {
-  if (card.text && !confirm('这张卡片有内容，确定删除？')) return
   cards.value = cards.value.filter((c) => c.id !== card.id)
   scheduleSave()
+}
+
+// 删除过渡：卡片高度塌缩到 0 并抵消列表 gap，让下方卡片被文档流平滑带上来
+function cardLeave(el, done) {
+  el.style.height = el.offsetHeight + 'px'
+  el.style.overflow = 'hidden'
+  void el.offsetHeight // 强制回流，让显式高度先落地，后面的改动才走过渡
+  el.style.transition = 'height 0.22s ease, margin-bottom 0.22s ease, opacity 0.16s ease'
+  el.style.height = '0'
+  el.style.marginBottom = '-14px' // 抵消 .cards 的 gap: 14px
+  el.style.opacity = '0'
+  setTimeout(done, 240)
 }
 
 function onTogglePin(card) {
@@ -102,14 +113,16 @@ onBeforeUnmount(() => window.removeEventListener('pagehide', flushOnHide))
 
       <main v-if="loaded" class="cards">
         <p v-if="selectedDate && !sorted.length" class="empty-hint">这天没有卡片</p>
-        <Card
-          v-for="c in sorted"
-          :key="c.id"
-          :card="c"
-          @change="(p) => onChange(c, p)"
-          @delete="onDelete(c)"
-          @toggle-pin="onTogglePin(c)"
-        />
+        <TransitionGroup :css="false" @leave="cardLeave">
+          <Card
+            v-for="c in sorted"
+            :key="c.id"
+            :card="c"
+            @change="(p) => onChange(c, p)"
+            @delete="onDelete(c)"
+            @toggle-pin="onTogglePin(c)"
+          />
+        </TransitionGroup>
       </main>
     </div>
   </div>
