@@ -115,7 +115,7 @@ onMounted(() => {
       }),
     ],
     editorProps: {
-      attributes: { class: 'editor-body' },
+      attributes: { class: 'editor-body', spellcheck: 'false' },
       handlePaste: (_view, event) => {
         const files = Array.from(event.clipboardData?.files || [])
         if (!files.length) return false
