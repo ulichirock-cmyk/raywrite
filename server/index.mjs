@@ -45,7 +45,9 @@ app.post('/api/upload', express.raw({ type: '*/*', limit: '100mb' }), (req, res)
   if (!Buffer.isBuffer(buf) || buf.length === 0) {
     return res.status(400).json({ error: '空文件' })
   }
-  const origName = decodeURIComponent(String(req.query.name || ''))
+  // Express 的 query 解析已做过一次 URL 解码，这里不能再 decodeURIComponent——
+  // 文件名本身含 % 时二次解码会抛 URIError（如 100%.png），含 %20 之类会被错改名
+  const origName = String(req.query.name || '')
   const mime = req.headers['content-type'] || 'application/octet-stream'
   let ext = path.extname(origName).toLowerCase()
   if (!ext) ext = EXT_BY_MIME[mime] || '.bin'
@@ -114,8 +116,10 @@ app.get('/api/settings', (_req, res) => {
 })
 
 app.put('/api/settings', express.json(), (req, res) => {
-  const key = String(req.body?.deepseekApiKey || '').trim()
-  if (key) writeSettings({ deepseekApiKey: key })
+  // 传了字符串就写入（空串 = 清除已保存的 Key）；没传该字段则不动
+  if (typeof req.body?.deepseekApiKey === 'string') {
+    writeSettings({ deepseekApiKey: req.body.deepseekApiKey.trim() })
+  }
   res.json({ hasApiKey: Boolean(readSettings().deepseekApiKey) })
 })
 
@@ -131,6 +135,8 @@ app.post('/api/polish', express.json({ limit: '1mb' }), async (req, res) => {
   try {
     const r = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
+      // 上游挂起时不能让请求永远吊着——前端按钮会一直停在「整理中…」
+      signal: AbortSignal.timeout(120_000),
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${apiKey}`,
@@ -155,7 +161,8 @@ app.post('/api/polish', express.json({ limit: '1mb' }), async (req, res) => {
     if (!polished) return res.status(502).json({ error: 'AI 没有返回内容' })
     res.json({ text: polished })
   } catch (err) {
-    res.status(502).json({ error: String(err?.message || err) })
+    const msg = err?.name === 'TimeoutError' ? 'AI 请求超时' : String(err?.message || err)
+    res.status(502).json({ error: msg })
   }
 })
 

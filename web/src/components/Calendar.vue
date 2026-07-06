@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { dateKey } from '../date'
 
 const props = defineProps({
@@ -10,9 +10,16 @@ const emit = defineEmits(['update:modelValue'])
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
-const today = new Date()
-const todayKey = dateKey(today)
-const view = ref({ year: today.getFullYear(), month: today.getMonth() })
+// 「今天」不能在创建时固化：Electron 托盘保活会常驻数天，跨天后固化值就错了
+// （今日高亮停在昨天、「今天」按钮跳去昨天），定时探测日期变更保持新鲜
+const now = ref(new Date())
+const dayTimer = setInterval(() => {
+  const d = new Date()
+  if (dateKey(d) !== dateKey(now.value)) now.value = d
+}, 30 * 1000)
+onBeforeUnmount(() => clearInterval(dayTimer))
+const todayKey = computed(() => dateKey(now.value))
+const view = ref({ year: now.value.getFullYear(), month: now.value.getMonth() })
 
 const cells = computed(() => {
   const { year, month } = view.value
@@ -45,8 +52,10 @@ function pick(cell) {
 }
 
 function goToday() {
-  view.value = { year: today.getFullYear(), month: today.getMonth() }
-  emit('update:modelValue', todayKey)
+  const t = new Date()
+  now.value = t
+  view.value = { year: t.getFullYear(), month: t.getMonth() }
+  emit('update:modelValue', dateKey(t))
 }
 </script>
 

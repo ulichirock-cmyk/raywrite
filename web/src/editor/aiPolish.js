@@ -20,6 +20,7 @@ export function serializeForAI(editor) {
 
 // AI 整理后的文本 + 原 chips → Tiptap doc JSON，供 editor.commands.setContent 使用
 export function buildDocFromAIText(text, chips) {
+  const used = new Set()
   const lines = String(text || '').split('\n')
   const content = lines.map((line) => {
     const paragraph = []
@@ -29,11 +30,20 @@ export function buildDocFromAIText(text, chips) {
     while ((m = CHIP_TOKEN_RE.exec(line))) {
       if (m.index > last) paragraph.push({ type: 'text', text: line.slice(last, m.index) })
       const attrs = chips[Number(m[1])]
-      if (attrs) paragraph.push({ type: 'assetChip', attrs })
+      if (attrs) {
+        paragraph.push({ type: 'assetChip', attrs })
+        used.add(Number(m[1]))
+      }
       last = m.index + m[0].length
     }
     if (last < line.length) paragraph.push({ type: 'text', text: line.slice(last) })
     return paragraph.length ? { type: 'paragraph', content: paragraph } : { type: 'paragraph' }
   })
+  // 系统提示词只是「要求」AI 保留占位符，兜不住它真删——被丢掉的 chip 统一追加
+  // 到末尾一段，保证图片/文件绝不因整理而丢失
+  const dropped = chips.filter((_, i) => !used.has(i))
+  if (dropped.length) {
+    content.push({ type: 'paragraph', content: dropped.map((attrs) => ({ type: 'assetChip', attrs })) })
+  }
   return { type: 'doc', content: content.length ? content : [{ type: 'paragraph' }] }
 }

@@ -5,11 +5,12 @@ export async function loadCards() {
 }
 
 export async function saveCards(cards) {
-  await fetch('/api/cards', {
+  const res = await fetch('/api/cards', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ cards }),
   })
+  if (!res.ok) throw new Error(`保存失败: ${res.status}`)
 }
 
 export function saveCardsBeacon(cards) {
