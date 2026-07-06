@@ -64,14 +64,26 @@ body {
   padding: 0 20px;
   display: flex;
   align-items: flex-start;
-  gap: 24px;
 }
 
+/* 日历侧边栏整体可隐藏：宽度收到 0 滑出，正文占满全宽。
+   间距不用 .layout 的 gap 而放在这里的 margin-right，收起时才能一并归零。 */
 .sidebar {
   position: sticky;
   top: 18px;
   flex: 0 0 240px;
+  min-width: 0;
+  margin-right: 24px;
   padding-top: 18px;
+  overflow: hidden;
+  transition: flex-basis 0.22s ease, margin-right 0.22s ease, opacity 0.18s ease;
+}
+
+.sidebar.hidden {
+  flex-basis: 0;
+  margin-right: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .page {
@@ -92,11 +104,36 @@ body {
   background: linear-gradient(to bottom, var(--bg) 82%, transparent);
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .brand-name {
   font-family: var(--font-mono);
   font-size: 19px;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+/* 日历开关小按钮：常驻顶栏最左，隐藏日历时若有日期筛选，把日期带在按钮上 */
+.btn.cal-toggle {
+  padding: 5px 8px;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.btn.cal-toggle.active {
+  background: var(--accent-soft);
+}
+
+.cal-toggle-date {
+  margin-left: 5px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .topbar-actions {
@@ -167,45 +204,14 @@ body {
   color: var(--ink);
 }
 
-/* ---- 日历 ---- */
+/* ---- 日历 ----
+   固定 240px 宽：侧边栏收起动画期间内容不回流，只是被裁掉 */
 .calendar {
+  width: 240px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
-}
-
-/* 收起态：整块缩成一条窄栏，点开才展开完整月历 */
-.calendar.collapsed {
-  padding: 0;
-}
-
-.cal-collapsed-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 9px 12px;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
-  cursor: pointer;
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: 13px;
-}
-
-.cal-collapsed-bar:hover {
-  background: var(--accent-soft);
-}
-
-.cal-collapsed-label {
-  font-weight: 600;
-}
-
-.cal-caret {
-  color: var(--muted);
-  font-size: 11px;
 }
 
 .cal-head {
@@ -824,10 +830,17 @@ body {
     position: static;
     flex-basis: auto;
     width: 100%;
+    margin-right: 0;
     padding-top: 0;
   }
 
+  /* 竖排布局下宽度动画不适用，隐藏就直接不占位 */
+  .sidebar.hidden {
+    display: none;
+  }
+
   .calendar {
+    width: 100%;
     max-width: 320px;
   }
 }

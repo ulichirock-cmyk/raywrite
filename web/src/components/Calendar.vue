@@ -14,20 +14,6 @@ const today = new Date()
 const todayKey = dateKey(today)
 const view = ref({ year: today.getFullYear(), month: today.getMonth() })
 
-// 日历默认收起，只留一条窄栏——正文才是主角，需要按日期翻查时再展开。
-// 收/展状态记进 localStorage，下次打开保持上次选择。
-const COLLAPSE_KEY = 'agentText.calCollapsed'
-const collapsed = ref(localStorage.getItem(COLLAPSE_KEY) !== 'false')
-function toggleCollapsed() {
-  collapsed.value = !collapsed.value
-  localStorage.setItem(COLLAPSE_KEY, String(collapsed.value))
-}
-
-// 收起态窄栏上显示当前筛选的日期，没选就提示「日历」
-const collapsedLabel = computed(() =>
-  props.modelValue ? props.modelValue.replace(/-/g, '/') : '日历'
-)
-
 const cells = computed(() => {
   const { year, month } = view.value
   const startOffset = new Date(year, month, 1).getDay()
@@ -65,22 +51,12 @@ function goToday() {
 </script>
 
 <template>
-  <div class="calendar" :class="{ collapsed }">
-    <button
-      v-if="collapsed"
-      class="cal-collapsed-bar"
-      title="展开日历"
-      @click="toggleCollapsed"
-    >
-      <span class="cal-collapsed-label">📅 {{ collapsedLabel }}</span>
-      <span class="cal-caret">▾</span>
-    </button>
-    <template v-else>
-      <div class="cal-head">
-        <button class="cal-nav" @click="shiftMonth(-1)">‹</button>
-        <span class="cal-title">{{ view.year }}年{{ view.month + 1 }}月</span>
-        <button class="cal-nav" @click="shiftMonth(1)">›</button>
-      </div>
+  <div class="calendar">
+    <div class="cal-head">
+      <button class="cal-nav" @click="shiftMonth(-1)">‹</button>
+      <span class="cal-title">{{ view.year }}年{{ view.month + 1 }}月</span>
+      <button class="cal-nav" @click="shiftMonth(1)">›</button>
+    </div>
     <div class="cal-weekdays">
       <span v-for="w in WEEKDAYS" :key="w">{{ w }}</span>
     </div>
@@ -106,8 +82,6 @@ function goToday() {
       <button v-if="modelValue" class="btn quiet" @click="emit('update:modelValue', null)">
         显示全部
       </button>
-      <button class="btn quiet" title="收起日历" @click="toggleCollapsed">收起 ▴</button>
     </div>
-    </template>
   </div>
 </template>

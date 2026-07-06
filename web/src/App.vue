@@ -14,6 +14,15 @@ const cards = ref([])
 const loaded = ref(false)
 const selectedDate = ref(null)
 const searchQuery = ref('')
+
+// 日历侧边栏整体隐藏/展开（#2）：默认隐藏，正文占满全宽；顶栏小按钮切换，
+// 状态记 localStorage。隐藏时若有日期筛选，按钮上带出日期免得忘了正被过滤。
+const CAL_OPEN_KEY = 'agentText.calOpen'
+const calOpen = ref(localStorage.getItem(CAL_OPEN_KEY) === 'true')
+function toggleCal() {
+  calOpen.value = !calOpen.value
+  localStorage.setItem(CAL_OPEN_KEY, String(calOpen.value))
+}
 let saveTimer = null
 let dirty = false
 
@@ -139,13 +148,25 @@ watch(selectedDate, (day) => {
 
 <template>
   <div class="layout" :style="cardFontVars">
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ hidden: !calOpen }">
       <Calendar v-model="selectedDate" :marked-dates="markedDates" />
     </aside>
 
     <div class="page">
       <header class="topbar">
-        <span class="brand-name">Ray Write</span>
+        <span class="topbar-left">
+          <button
+            class="btn quiet cal-toggle"
+            :class="{ active: calOpen }"
+            :title="calOpen ? '隐藏日历' : '展开日历'"
+            @click="toggleCal"
+          >
+            📅<span v-if="!calOpen && selectedDate" class="cal-toggle-date">{{
+              selectedDate.slice(5).replace('-', '/')
+            }}</span>
+          </button>
+          <span class="brand-name">Ray Write</span>
+        </span>
         <span class="topbar-actions">
           <span class="search-box">
             <input v-model="searchQuery" type="text" class="search-input" placeholder="搜索卡片…" />
