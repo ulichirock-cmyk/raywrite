@@ -39,10 +39,25 @@ export function initUpdater(options) {
     setTimeout(() => app.quit(), 500) // relaunchSpawned 已置位，这次不再拦截
   })
   if (app.isPackaged) {
-    setTimeout(() => checkForUpdate(false).catch(() => {}), 5000)
+    autoCheckSoon()
     // 托盘保活可能常驻数天，定期再看一眼
     setInterval(() => checkForUpdate(false).catch(() => {}), 6 * 60 * 60 * 1000)
   }
+}
+
+// 冷启动那一下网络/DNS 常常还没就绪：单次 5s 检查一旦联网失败，就要等 6h 才重试、
+// 且全程静默无感——表现就是「自动没提示、手动点一下却有」。这里对「没连上 GitHub」
+// 做几次递增退避重试，直到查到结果为止，保证新版提示条能自动浮出来。
+function autoCheckSoon() {
+  const delays = [5000, 20000, 60000, 180000]
+  let i = 0
+  const tick = async () => {
+    // checkForUpdate 返回 false 表示这次没连上 GitHub（值得再试）；其余情况（查到了、
+    // 已是最新、已在下载/就绪）都算有结果，不再重试，交给 6h 定时器兜后续
+    const reached = await checkForUpdate(false).catch(() => true)
+    if (reached === false && i < delays.length - 1) setTimeout(tick, delays[++i])
+  }
+  setTimeout(tick, delays[0])
 }
 
 // 当前状态快照，供渲染进程挂载时主动拉取一次（补上挂载前错过的推送）
@@ -55,13 +70,15 @@ export function openDownloadPage() {
   if (manualUrl) shell.openExternal(manualUrl)
 }
 
+// 返回值：true = 已从 GitHub 查到结果（或已在下载/就绪）；false = 没连上 GitHub，
+// 值得稍后重试（autoCheckSoon 据此决定要不要退避再试）。
 export async function checkForUpdate(interactive = false) {
-  if (busy || !ctx) return
+  if (busy || !ctx) return true
   busy = true
   try {
     if (pending) {
       broadcast({ phase: 'ready', version: pending.version })
-      return
+      return true
     }
     if (interactive) broadcast({ phase: 'checking' })
 
@@ -75,15 +92,15 @@ export async function checkForUpdate(interactive = false) {
       rel = await res.json()
     } catch (err) {
       if (interactive) broadcastTransient({ phase: 'error', message: '检查更新失败：' + String(err?.message || err) })
-      return
+      return false // 没连上，交给退避重试
     }
 
     const latest = String(rel.tag_name || '').replace(/^v/, '')
     if (!latest || !newer(latest, cur)) {
       if (interactive) broadcastTransient({ phase: 'up-to-date', version: cur })
-      return
+      return true
     }
-    if (!interactive && promptedVersion === latest) return
+    if (!interactive && promptedVersion === latest) return true
     promptedVersion = latest
 
     const asset = (rel.assets || []).find((a) => a.name?.endsWith('.exe'))
@@ -94,7 +111,7 @@ export async function checkForUpdate(interactive = false) {
     if (!canSelfUpdate) {
       manualUrl = rel.html_url || `https://github.com/${REPO}/releases/latest`
       broadcast({ phase: 'manual', version: latest, url: manualUrl })
-      return
+      return true
     }
 
     // 无需确认，发现新版本直接后台下载——提示条只展示进度，不打断使用
@@ -112,7 +129,7 @@ export async function checkForUpdate(interactive = false) {
       } catch (err) {
         promptedVersion = null // 允许下次自动检查重试
         broadcastTransient({ phase: 'error', message: '下载更新失败：' + String(err?.message || err) })
-        return
+        return true // 已连上 GitHub，只是下载失败，不必走联网重试
       }
     }
     // 下载完成：.part 转正为新版 exe（与旧 exe 并存），写替换协议文件。
@@ -130,10 +147,11 @@ export async function checkForUpdate(interactive = false) {
     } catch (err) {
       promptedVersion = null
       broadcastTransient({ phase: 'error', message: '更新暂存失败：' + String(err?.message || err) })
-      return
+      return true
     }
     pending = { src: staged, version: latest }
     broadcast({ phase: 'ready', version: latest })
+    return true
   } finally {
     busy = false
   }
