@@ -175,6 +175,39 @@ body {
   padding: 12px;
 }
 
+/* 收起态：整块缩成一条窄栏，点开才展开完整月历 */
+.calendar.collapsed {
+  padding: 0;
+}
+
+.cal-collapsed-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.cal-collapsed-bar:hover {
+  background: var(--accent-soft);
+}
+
+.cal-collapsed-label {
+  font-weight: 600;
+}
+
+.cal-caret {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .cal-head {
   display: flex;
   align-items: center;
