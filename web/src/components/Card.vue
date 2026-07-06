@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Extension } from '@tiptap/core'
+import { Slice } from '@tiptap/pm/model'
 import { AssetChip } from '../editor/assetChip'
 import { PathHighlight } from '../editor/pathHighlight'
 import { MarkdownDecorations } from '../editor/markdownDecorations'
@@ -103,6 +104,32 @@ async function doPolish() {
   }
 }
 
+const isEmptyPara = (node) => node?.type.name === 'paragraph' && node.content.size === 0
+
+// 粘贴时剥掉选区首尾整段的空行：从卡片里选中「空行 + 一段文字」复制再粘贴时，
+// 那几段空行本不该跟着进来（否则光标后凭空多出很多空白行）。只裁首尾成整段的空行，
+// 中间的空行是刻意留白，原样保留。首/尾段被裁掉后该侧就变成闭合插入（open 深度归 0），
+// 正好让内容紧接光标落下。这套文档结构最多一层，open 深度 >1 时保守跳过不动。
+function trimPastedBlankLines(slice) {
+  let content = slice.content
+  let openStart = slice.openStart
+  let openEnd = slice.openEnd
+  if (openStart <= 1) {
+    while (content.childCount && isEmptyPara(content.firstChild)) {
+      content = content.cut(content.firstChild.nodeSize)
+      openStart = 0
+    }
+  }
+  if (openEnd <= 1) {
+    while (content.childCount && isEmptyPara(content.lastChild)) {
+      content = content.cut(0, content.size - content.lastChild.nodeSize)
+      openEnd = 0
+    }
+  }
+  if (content.eq(slice.content)) return slice
+  return new Slice(content, openStart, openEnd)
+}
+
 function fmtTime(iso) {
   const d = new Date(iso)
   const p = (n) => String(n).padStart(2, '0')
@@ -141,6 +168,7 @@ onMounted(() => {
     ],
     editorProps: {
       attributes: { class: 'editor-body', spellcheck: 'false' },
+      transformPasted: (slice) => trimPastedBlankLines(slice),
       handlePaste: (_view, event) => {
         const files = Array.from(event.clipboardData?.files || [])
         if (!files.length) return false
