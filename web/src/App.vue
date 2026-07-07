@@ -5,6 +5,7 @@ import Calendar from './components/Calendar.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
 import { loadCards, saveCards, saveCardsBeacon } from './api'
+import { serializeDocText } from './editor/serialize'
 import { pathStyle, togglePathStyle } from './pathStyleStore'
 import { settings, FONT_STACKS } from './settingsStore'
 import { refreshAiSettings } from './aiStore'
@@ -12,6 +13,9 @@ import { dateKey } from './date'
 
 const cards = ref([])
 const loaded = ref(false)
+// 加载失败时禁止进入编辑（loaded 不置 true）：这时 cards 是空的，任何一次
+// 整表保存都会把 cards.json 里的存量数据清掉
+const loadFailed = ref(false)
 const selectedDate = ref(null)
 const searchQuery = ref('')
 
@@ -29,13 +33,22 @@ let dirty = false
 // 空卡片只是待写的展示位，没内容就不落盘——存量数据里只留用户真正写过的卡片
 const persistable = (list) => list.filter((c) => c.text)
 
+async function persistNow() {
+  try {
+    await saveCards(persistable(cards.value))
+    dirty = false
+  } catch (e) {
+    // 保存失败保持 dirty：5s 后自动重试，中途关页面 flushOnHide 也会用 sendBeacon 兜底
+    console.error(e)
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(persistNow, 5000)
+  }
+}
+
 function scheduleSave() {
   dirty = true
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(async () => {
-    dirty = false
-    await saveCards(persistable(cards.value))
-  }, 600)
+  saveTimer = setTimeout(persistNow, 600)
 }
 
 function flushOnHide() {
@@ -133,6 +146,8 @@ onMounted(async () => {
     cards.value = data.cards || []
   } catch (e) {
     console.error(e)
+    loadFailed.value = true
+    return
   }
   if (!cards.value.length) ensureEmptyCards(dateKey(new Date()))
   loaded.value = true
@@ -141,8 +156,22 @@ onMounted(async () => {
 
 onBeforeUnmount(() => window.removeEventListener('pagehide', flushOnHide))
 
+function reload() {
+  location.reload()
+}
+
 watch(selectedDate, (day) => {
   if (day && loaded.value) ensureEmptyCards(day)
+})
+
+// 切换路径风格时重算所有卡片的持久化 text（含被日期筛选/搜索过滤而未挂载的卡片，
+// Card.vue 自己的 watch 只覆盖挂载中的），保证搜索/判空与复制出的文本一致
+watch(pathStyle, (style) => {
+  if (!loaded.value) return
+  for (const c of cards.value) {
+    if (c.doc) c.text = serializeDocText(c.doc, style)
+  }
+  scheduleSave()
 })
 </script>
 
@@ -186,7 +215,13 @@ watch(selectedDate, (day) => {
         </span>
       </header>
 
-      <main v-if="loaded" class="cards">
+      <main v-if="loadFailed" class="cards">
+        <p class="empty-hint">
+          卡片加载失败，为避免覆盖已有数据已暂停编辑。
+          <button class="btn quiet" @click="reload">刷新重试</button>
+        </p>
+      </main>
+      <main v-else-if="loaded" class="cards">
         <p v-if="searchQuery.trim() && !sorted.length" class="empty-hint">没有找到匹配的卡片</p>
         <p v-else-if="selectedDate && !sorted.length" class="empty-hint">这天没有卡片</p>
         <TransitionGroup :css="false" @leave="cardLeave">

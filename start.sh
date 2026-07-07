@@ -86,6 +86,12 @@ do_stop() {
   pid="$(server_pid)"
   if [[ -n "$pid" ]]; then
     kill "$pid"
+    # 等进程真正退出再返回：restart 时 do_start 紧跟着跑，进程还没死的话
+    # is_running 仍为真，会误判「已在运行」直接返回，结果服务停了没再起
+    for _ in $(seq 1 50); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.1
+    done
     echo "已停止（pid $pid）"
   else
     echo "未在运行"

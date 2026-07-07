@@ -45,13 +45,10 @@ function register(accelerator) {
 
 export function initShortcut(options) {
   ctx = options
+  // current 只由 register 成功时更新，别在注册前就赋值——否则存的热键和默认热键
+  // 都注册失败时，getShortcut 会把一个根本没生效的组合报给设置面板
   const saved = readSettings().globalShortcut
-  if (saved) {
-    current = saved
-    if (!register(saved)) register(DEFAULT_ACCELERATOR) // 存的热键这次注册不了（比如被别的软件占了），退回默认
-  } else {
-    register(DEFAULT_ACCELERATOR)
-  }
+  if (!saved || !register(saved)) register(DEFAULT_ACCELERATOR) // 存的热键注册不了（比如被别的软件占了），退回默认
   app.on('will-quit', () => globalShortcut.unregisterAll())
 }
 

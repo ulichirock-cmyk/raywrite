@@ -204,10 +204,12 @@ function broadcast(status) {
   if (win && !win.isDestroyed()) win.webContents.send('updater:status', status)
 }
 
-// 一次性提示（检查中/已是最新/出错），展示几秒后自动收起，回落到当前持久状态
+// 一次性提示（检查中/已是最新/出错），展示几秒后自动收起，回落到当前持久状态。
+// 期间若已有更新的状态推送（比如退避重试进入 downloading），就不再回落去盖掉它
 function broadcastTransient(status, revertMs = 4000) {
   broadcast(status)
   setTimeout(() => {
+    if (lastStatus !== status) return
     broadcast(pending ? { phase: 'ready', version: pending.version } : { phase: 'idle' })
   }, revertMs)
 }

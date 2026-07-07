@@ -107,6 +107,21 @@ async function onSaveApiKey() {
     apiKeySaving.value = false
   }
 }
+
+// 清除已保存的 Key（传空串给后端 = 删除），否则填错后只能手改 data/settings.json
+async function onClearApiKey() {
+  if (apiKeySaving.value) return
+  apiKeySaving.value = true
+  try {
+    await saveApiKey('')
+    await refreshAiSettings()
+    apiKeyInput.value = ''
+  } catch (e) {
+    console.error(e)
+  } finally {
+    apiKeySaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -185,6 +200,15 @@ async function onSaveApiKey() {
             @click="onSaveApiKey"
           >
             {{ apiKeySaved ? '已保存 ✓' : '保存' }}
+          </button>
+          <button
+            v-if="aiSettings.hasApiKey"
+            class="btn quiet apikey-save"
+            :disabled="apiKeySaving"
+            title="删除已保存的 Key"
+            @click="onClearApiKey"
+          >
+            清除
           </button>
         </div>
         <p class="settings-hint">

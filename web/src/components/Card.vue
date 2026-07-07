@@ -89,6 +89,8 @@ async function doCopy() {
 async function doPolish() {
   if (!editor.value || polishing.value || !charCount.value) return
   polishing.value = true
+  // 整理是慢请求，期间锁住编辑——否则用户中途敲的字会被 setContent 整体覆盖丢掉
+  editor.value.setEditable(false)
   try {
     const { text, chips } = serializeForAI(editor.value)
     const result = await polishText(text)
@@ -100,6 +102,7 @@ async function doPolish() {
     clearTimeout(polishErrorTimer)
     polishErrorTimer = setTimeout(() => (polishError.value = ''), 4000)
   } finally {
+    if (editor.value && !editor.value.isDestroyed) editor.value.setEditable(true)
     polishing.value = false
   }
 }
@@ -199,12 +202,11 @@ onMounted(() => {
   resizeOb.observe(editor.value.view.dom)
 })
 
-// 切换全局路径风格时，重算字数并回写持久化 text（保证与复制出来的文本一致）
+// 切换全局路径风格时重算字数展示；持久化 text 的回写由 App.vue 的 watch 统一做
+// （它连未挂载的卡片一起处理），这里不再 emit，避免同一次切换重复触发保存
 watch(pathStyle, (style) => {
   if (!editor.value) return
-  const text = serializeText(editor.value, style)
-  charCount.value = text.length
-  emit('change', { doc: editor.value.getJSON(), text })
+  charCount.value = serializeText(editor.value, style).length
 })
 
 onBeforeUnmount(() => {
@@ -229,7 +231,7 @@ onBeforeUnmount(() => {
       <button
         class="btn quiet"
         :disabled="!charCount || polishing || !aiSettings.hasApiKey"
-        :title="aiSettings.hasApiKey ? 'AI 把这张卡片整理成结构清晰的提示词' : '先在设置里填 Anthropic API Key'"
+        :title="aiSettings.hasApiKey ? 'AI 把这张卡片整理成结构清晰的提示词' : '先在设置里填 DeepSeek API Key'"
         @click="doPolish"
       >
         {{ polishing ? '整理中…' : 'AI 整理' }}
