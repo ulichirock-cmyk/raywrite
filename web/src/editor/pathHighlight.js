@@ -6,6 +6,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 const EXT =
   'c|h|cpp|hpp|cc|cxx|m|mm|js|mjs|cjs|ts|jsx|tsx|py|vue|rs|go|java|kt|swift|css|scss|less|html|htm|json|yaml|yml|toml|ini|md|txt|sh|fish|bash|zsh|sql|proto|cmake|mk|log'
 
+// CJK 及日韩假名、全角字符——\w 不认这些，得显式加进路径/文件名字符类，
+// 否则「英文名+中文名.txt」这种混合文件名只有英文段被高亮（见 issue #9）。
+// 覆盖：平/片假名、CJK 扩展A、CJK 统一表意、CJK 兼容、全角/半角形
+// （从 U+FF01 起，跳过全角空格 U+3000，与各字符类里的空格排除保持一致）。
+const CJK = '\\u3040-\\u30ff\\u3400-\\u4dbf\\u4e00-\\u9fff\\uf900-\\ufaff\\uff01-\\uffef'
+
 const PATH_RE = new RegExp(
   [
     // 带空格的路径/文件名：以明确的路径前缀（C:\、/、~/、./）开头、以已知扩展名结尾，
@@ -15,10 +21,10 @@ const PATH_RE = new RegExp(
     String.raw`(?:[A-Za-z]:[\\/]|(?<![\w:/])(?:~|\.{1,2})?/)[^\n"'　<>|*?]*?\.(?:${EXT})(?::\d+)?(?![\w.])`,
     // Windows 路径：C:\foo\bar 或 C:/foo/bar（正反斜杠都认）
     String.raw`[A-Za-z]:[\\/][^\s"'　<>|*?]+`,
-    // Unix 路径：/abs、~/home、./rel，可带 :行号；排除 URL 的 ://
-    String.raw`(?<![\w:/])(?:~|\.{1,2})?/[\w.\-+@%~]+(?:/[\w.\-+@%~]+)*(?::\d+)?`,
-    // 裸文件名：gauge.c:412、config.json
-    String.raw`(?<![\w./\\])[\w\-]+(?:\.[\w\-]+)*\.(?:${EXT})(?::\d+)?(?![\w.])`,
+    // Unix 路径：/abs、~/home、./rel，可带 :行号；排除 URL 的 ://；中文段一并吞入
+    String.raw`(?<![\w:/])(?:~|\.{1,2})?/[\w.\-+@%~${CJK}]+(?:/[\w.\-+@%~${CJK}]+)*(?::\d+)?`,
+    // 裸文件名：gauge.c:412、config.json、报告report.txt（中英混合）
+    String.raw`(?<![\w./\\${CJK}])[\w\-${CJK}]+(?:\.[\w\-${CJK}]+)*\.(?:${EXT})(?::\d+)?(?![\w.])`,
   ].join('|'),
   'g'
 )
