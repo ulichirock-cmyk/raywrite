@@ -201,6 +201,18 @@ onMounted(() => {
     ],
     editorProps: {
       attributes: { class: 'editor-body', spellcheck: 'false' },
+      // Windows CF_HTML 包装（<html>\n<body>\n<!--StartFragment-->…）在 body/fragment
+      // 边界带字面换行；片段一旦带 data-pm-slice（即应用内复制），PM 会用
+      // preserveWhitespace:'full' 解析整个 HTML，这些换行就成了粘贴内容前后的空段落
+      // （<p><br><br></p>，trimPastedBlankLines 认不出）。解析前只留 fragment 部分即可
+      // 根治；无 fragment 注释时退回剥标签紧邻换行。外部来源 HTML 走空白折叠，不受影响。
+      transformPastedHTML: (html) => {
+        const m = html.match(/<!--StartFragment-->([\s\S]*)<!--EndFragment-->/)
+        if (m) return m[1]
+        return html
+          .replace(/(<(?:html|body)[^>]*>)[\r\n]+/gi, '$1')
+          .replace(/[\r\n]+(<\/(?:html|body)>)/gi, '$1')
+      },
       transformPasted: (slice) => trimPastedBlankLines(slice),
       // 原生 Ctrl+C 复制也走跟「复制」按钮一致的纯文本序列化，否则 PM 默认用 '\n\n'
       // 连段落，粘进终端每行多一空行（issue #1）。pathStyle.value 在复制那一刻取现值。
