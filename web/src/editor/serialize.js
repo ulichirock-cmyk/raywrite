@@ -1,5 +1,13 @@
 import { toWin, toWsl } from './pathStyle'
 
+// chip → 文本的唯一格式：两侧补空格的绝对路径，带注释（#13）时跟在路径后
+// 用括号标注，agent 读到「路径 (说明)」自然知道这张图是干嘛的。
+function chipText(attrs, conv) {
+  const p = conv(attrs?.path || '')
+  const note = (attrs?.note || '').trim()
+  return note ? ` ${p} (${note}) ` : ` ${p} `
+}
+
 // 编辑器内容 → 可直接粘进 CLI agent 的纯文本。
 // assetChip 序列化为落盘绝对路径，两侧补空格避免与中文粘连。
 // style 决定输出风格：'win'（C:\...）| 'wsl'（/mnt/c/...）；文件本身只存一份，这里按需转换。
@@ -9,7 +17,7 @@ export function serializeText(editor, style = 'win') {
     .getText({
       blockSeparator: '\n',
       textSerializers: {
-        assetChip: ({ node }) => ` ${conv(node.attrs.path)} `,
+        assetChip: ({ node }) => chipText(node.attrs, conv),
       },
     })
     .replace(/[^\S\n]+\n/g, '\n')
@@ -25,7 +33,7 @@ export function serializeSlice(slice, style = 'win') {
   const conv = style === 'wsl' ? toWsl : toWin
   return slice.content
     .textBetween(0, slice.content.size, '\n', (leaf) => {
-      if (leaf.type.name === 'assetChip') return ` ${conv(leaf.attrs?.path || '')} `
+      if (leaf.type.name === 'assetChip') return chipText(leaf.attrs, conv)
       if (leaf.type.name === 'hardBreak') return '\n'
       return ''
     })
@@ -39,7 +47,7 @@ export function serializeSlice(slice, style = 'win') {
 export function serializeDocText(doc, style = 'win') {
   const conv = style === 'wsl' ? toWsl : toWin
   const inline = (n) => {
-    if (n.type === 'assetChip') return ` ${conv(n.attrs?.path || '')} `
+    if (n.type === 'assetChip') return chipText(n.attrs, conv)
     if (n.type === 'hardBreak') return '\n'
     return n.text || ''
   }
