@@ -756,6 +756,12 @@ body {
   user-select: none;
 }
 
+/* 图片 chip：缩略图 + 下方注释输入框，纵向排 */
+.asset-chip.asset-img {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .asset-chip.ProseMirror-selectednode {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
@@ -794,6 +800,57 @@ body {
   max-height: 110px;
   max-width: 260px;
   border-radius: 5px;
+  cursor: zoom-in; /* 双击放大看原图 */
+}
+
+/* 图片注释：写在缩略图下方，序列化时跟在路径后输出（#13） */
+.asset-note {
+  width: 100%;
+  min-width: 0;
+  margin-top: 3px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  padding: 0 2px;
+}
+
+.asset-note:focus {
+  outline: none;
+  color: var(--ink);
+  background: #eef2f5;
+  border-radius: 4px;
+}
+
+.asset-note::placeholder {
+  color: #c3ccd5;
+}
+
+/* 纯图片/文件行不显示文本光标（#10）：这类行的 caret 会被撑成图片等高的大竖线。
+   行里一旦有文字，chip-line 类由 decoration 自动摘掉，光标恢复正常 */
+.editor-body p.chip-line {
+  caret-color: transparent;
+}
+
+/* 双击图片放大：全屏遮罩看原图（#14），点击遮罩或 Esc 关闭 */
+.asset-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 26, 34, 0.86);
+  cursor: zoom-out;
+}
+
+.asset-lightbox img {
+  max-width: 94vw;
+  max-height: 94vh;
+  border-radius: 6px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
 }
 
 .asset-file {

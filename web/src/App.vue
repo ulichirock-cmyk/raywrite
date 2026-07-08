@@ -66,9 +66,18 @@ function makeEmptyCard(createdAt) {
 }
 
 // 新卡片刚创建时是空的，不用落盘（persistable 也会自动过滤掉）——
-// 真正写了字之后 onChange 才会触发 scheduleSave
+// 真正写了字之后 onChange 才会触发 scheduleSave。
+// 空卡片会被搜索过滤掉（text 为空），且日历选中非今天时按今天时间戳建的卡片
+// 也不在当前视图里——两种情况下新卡片都「建了却看不见」（#15）：
+// 先清搜索，再把时间戳落在当前选中的日期上，保证新卡片一定出现在眼前。
 function newCard() {
-  cards.value.unshift(makeEmptyCard(new Date().toISOString()))
+  searchQuery.value = ''
+  let createdAt = new Date()
+  if (selectedDate.value && selectedDate.value !== dateKey(createdAt)) {
+    const [y, m, d] = selectedDate.value.split('-').map(Number)
+    createdAt = new Date(y, m - 1, d, createdAt.getHours(), createdAt.getMinutes(), createdAt.getSeconds())
+  }
+  cards.value.unshift(makeEmptyCard(createdAt.toISOString()))
 }
 
 // 某天空卡片数不够 3 张就补齐——点进任何一天都有地方可写，不会看到空页面，
