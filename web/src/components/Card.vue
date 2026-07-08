@@ -7,7 +7,7 @@ import { Slice } from '@tiptap/pm/model'
 import { AssetChip } from '../editor/assetChip'
 import { PathHighlight } from '../editor/pathHighlight'
 import { MarkdownDecorations } from '../editor/markdownDecorations'
-import { serializeText } from '../editor/serialize'
+import { serializeText, serializeSlice } from '../editor/serialize'
 import { serializeForAI, buildDocFromAIText } from '../editor/aiPolish'
 import { pathStyle } from '../pathStyleStore'
 import { settings } from '../settingsStore'
@@ -172,6 +172,9 @@ onMounted(() => {
     editorProps: {
       attributes: { class: 'editor-body', spellcheck: 'false' },
       transformPasted: (slice) => trimPastedBlankLines(slice),
+      // 原生 Ctrl+C 复制也走跟「复制」按钮一致的纯文本序列化，否则 PM 默认用 '\n\n'
+      // 连段落，粘进终端每行多一空行（issue #1）。pathStyle.value 在复制那一刻取现值。
+      clipboardTextSerializer: (slice) => serializeSlice(slice, pathStyle.value),
       handlePaste: (_view, event) => {
         const files = Array.from(event.clipboardData?.files || [])
         if (!files.length) return false
