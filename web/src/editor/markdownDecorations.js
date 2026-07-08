@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { PATH_RE } from './pathHighlight'
 
 const HEADING_RE = /^(#{1,6})[ \t]+/
 const QUOTE_RE = /^(>+)[ \t]?/
@@ -32,7 +33,12 @@ function paragraphText(node, start) {
 }
 
 function applyInline(text, map, decos, from) {
+  // 路径区间先占位：路径里常见的 _下划线_/*星号* 不是 markdown 语法，落进去的
+  // 斜体/加粗/行内代码装饰会把 pathHighlight 的整段 path-hl 拆成带缝隙的碎片（#18）
   const covered = []
+  PATH_RE.lastIndex = 0
+  let pm
+  while ((pm = PATH_RE.exec(text))) covered.push([pm.index, pm.index + pm[0].length])
   const overlaps = (s, e) => covered.some(([cs, ce]) => s < ce && e > cs)
   for (const { re, cls, markerLen } of INLINE_PATTERNS) {
     re.lastIndex = from

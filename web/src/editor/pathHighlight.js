@@ -12,7 +12,9 @@ const EXT =
 // （从 U+FF01 起，跳过全角空格 U+3000，与各字符类里的空格排除保持一致）。
 const CJK = '\\u3040-\\u30ff\\u3400-\\u4dbf\\u4e00-\\u9fff\\uf900-\\ufaff\\uff01-\\uffef'
 
-const PATH_RE = new RegExp(
+// 导出给 markdownDecorations 用：路径命中的区间要挡住行内 md 规则，
+// 否则路径里的 _下划线_/*星号* 会被当成斜体/加粗，把整段 path-hl 高亮拆碎（#18）
+export const PATH_RE = new RegExp(
   [
     // 带空格的路径/文件名：以明确的路径前缀（C:\、/、~/、./）开头、以已知扩展名结尾，
     // 中间的空格照样吞进来整体高亮。像 MobaXterm 日志名
