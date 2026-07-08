@@ -133,6 +133,36 @@ function trimPastedBlankLines(slice) {
   return new Slice(content, openStart, openEnd)
 }
 
+// issue #1 的第三条漏网路径：只要这次复制不是 ProseMirror 亲手处理的，浏览器
+// 默认的 HTML→文本转换就会给每个 <p> 之间补一个空行。PM 不接管的情况有两类：
+// 选区端点落在编辑器 DOM 之外（从卡片头部/正文四周 padding 拖选），或 DOM 选区
+// 还没同步进 PM 内部状态（state.selection 仍是空的，PM 的 copy 处理器直接早退）。
+// 在卡片根元素捕获 copy 兜底：PM 能正常处理就放行；否则把 DOM 选区端点收敛映射
+// 回编辑器文档，仍走 serializeSlice 这个唯一出口输出单换行纯文本。
+function onCopyCapture(e) {
+  const view = editor.value?.view
+  if (!view || !e.clipboardData) return
+  const sel = window.getSelection()
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return
+  const dom = view.dom
+  const bothIn = dom.contains(sel.anchorNode) && dom.contains(sel.focusNode)
+  if (bothIn && !view.state.selection.empty) return // PM 自己会用 clipboardTextSerializer 处理
+  const range = sel.getRangeAt(0)
+  if (!range.intersectsNode(dom)) return
+  let from = 0
+  let to = view.state.doc.content.size
+  try {
+    if (dom.contains(range.startContainer)) from = view.posAtDOM(range.startContainer, range.startOffset)
+    if (dom.contains(range.endContainer)) to = view.posAtDOM(range.endContainer, range.endOffset)
+  } catch {
+    // posAtDOM 对不上就退回整篇文档，宁可多复制也不能输出带空行的脏文本
+  }
+  if (from >= to) return
+  const slice = view.state.doc.slice(from, to)
+  e.clipboardData.setData('text/plain', serializeSlice(slice, pathStyle.value))
+  e.preventDefault()
+}
+
 function fmtTime(iso) {
   const d = new Date(iso)
   const p = (n) => String(n).padStart(2, '0')
@@ -222,7 +252,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <article class="card" :class="{ pinned: card.pinned }">
+  <article class="card" :class="{ pinned: card.pinned }" @copy.capture="onCopyCapture">
     <header class="card-head">
       <span class="meta">{{ fmtTime(card.createdAt) }}</span>
       <span v-if="card.pinned" class="meta pin-mark">置顶</span>
