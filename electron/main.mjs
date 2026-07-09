@@ -73,7 +73,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: 'agentText',
+    title: 'Ray',
     icon: path.join(__dirname, 'icon.png'), // 开发模式窗口/任务栏图标；打包后 exe 图标由 build.win.icon 生效
     webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.cjs') },
   })
