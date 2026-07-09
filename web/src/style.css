@@ -110,11 +110,9 @@ body {
   gap: 8px;
 }
 
-.brand-name {
-  font-family: var(--font-mono);
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.brand-logo {
+  height: 26px;
+  display: block;
 }
 
 /* 日历开关小按钮：常驻顶栏最左，隐藏日历时若有日期筛选，把日期带在按钮上 */

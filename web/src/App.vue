@@ -203,7 +203,7 @@ watch(pathStyle, (style) => {
               selectedDate.slice(5).replace('-', '/')
             }}</span>
           </button>
-          <span class="brand-name">Ray Write</span>
+          <img class="brand-logo" src="./assets/ray-logo.png" alt="Ray" />
         </span>
         <span class="topbar-actions">
           <span class="search-box">
