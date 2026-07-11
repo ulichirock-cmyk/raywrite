@@ -127,24 +127,26 @@ watch(voice.error, (msg) => {
   if (msg) showVoiceError(msg)
 })
 
-async function toggleVoice() {
+function startVoice() {
   if (!voice.supported) {
     showVoiceError('此浏览器不支持语音识别，请用 Chrome / Edge')
     return
   }
-  if (voiceCorrecting.value) return
-  if (!voice.recording.value) {
-    voice.start(settings.voiceLang)
-    return
-  }
+  if (voiceCorrecting.value || voice.recording.value) return
+  voice.start(settings.voiceLang)
+}
+
+async function finishVoice() {
+  if (!voice.recording.value || voiceCorrecting.value) return
   const raw = (await voice.stop()).trim()
-  if (voice.error.value) showVoiceError(voice.error.value)
   if (!raw) return
   let text = raw
   if (settings.voiceCorrect && aiSettings.hasApiKey) {
     voiceCorrecting.value = true
     try {
-      text = (await correctVoiceText(raw)).trim() || raw
+      // 卡片已有文本随转写一起送去，让 AI 统一术语/人名拼写（Typeless 的上下文感知）
+      const context = editor.value ? editor.value.getText({ blockSeparator: '\n' }) : ''
+      text = (await correctVoiceText(raw, context)).trim() || raw
     } catch (e) {
       console.error(e)
       // 纠错挂了不吞用户的话——照插原始转写，只提示纠错没成
@@ -153,7 +155,39 @@ async function toggleVoice() {
       voiceCorrecting.value = false
     }
   }
-  editor.value?.chain().focus().insertContent(text).run()
+  insertDictation(text)
+}
+
+// AI 可能把口述整理成多行（列表/分段），多行按段落插入；单行直接接在光标处
+function insertDictation(text) {
+  if (!editor.value) return
+  const lines = text.split('\n')
+  const content =
+    lines.length === 1
+      ? text
+      : lines.map((l) => (l ? { type: 'paragraph', content: [{ type: 'text', text: l }] } : { type: 'paragraph' }))
+  editor.value.chain().focus().insertContent(content).run()
+}
+
+// 仿 Typeless 的按住说话：按住超过 HOLD_MS 松开即结束并插入；快速单击当作
+// 「常开」开关，再点一下（或点浮条上的按钮）结束。用 pointer capture 保证
+// 按住时指针滑出按钮外松开也能收到 up。
+const HOLD_MS = 400
+let pressAt = 0
+function onMicDown(e) {
+  if (voiceCorrecting.value) return
+  e.target.setPointerCapture?.(e.pointerId)
+  if (!voice.recording.value) {
+    pressAt = Date.now()
+    startVoice()
+  } else {
+    pressAt = 0 // 常开状态下这次按下是为了停止，松开时结束
+  }
+}
+function onMicUp() {
+  if (!voice.recording.value) return
+  if (pressAt && Date.now() - pressAt < HOLD_MS) return // 快速单击 → 保持常开
+  finishVoice()
 }
 
 function cancelVoice() {
@@ -333,8 +367,10 @@ onBeforeUnmount(() => {
         class="btn quiet voice-btn"
         :class="{ recording: voice.recording.value }"
         :disabled="voiceCorrecting"
-        :title="voice.recording.value ? '停止录音并插入' : '语音输入（说完再点一次插入文本）'"
-        @click="toggleVoice"
+        :title="voice.recording.value ? '再点一下结束并插入' : '按住说话，松开插入；单击切换常开'"
+        @pointerdown="onMicDown"
+        @pointerup="onMicUp"
+        @pointercancel="onMicUp"
       >
         <svg
           width="13"
@@ -376,7 +412,7 @@ onBeforeUnmount(() => {
         <span v-if="!voice.finals.value && !voice.interim.value" class="voice-interim">正在听，请说话…</span>
       </span>
       <template v-if="!voiceCorrecting">
-        <button class="btn quiet voice-done" @click="toggleVoice">完成并插入</button>
+        <button class="btn quiet voice-done" @click="finishVoice">完成并插入</button>
         <button class="btn quiet danger" @click="cancelVoice">取消</button>
       </template>
     </div>

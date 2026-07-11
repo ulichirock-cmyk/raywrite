@@ -195,7 +195,7 @@ async function onClearApiKey() {
       </div>
       <p class="settings-hint">
         {{ voiceSupported
-          ? '开启后语音转写先由 AI 修正同音字、标点和口语赘词再插入（需下方 DeepSeek Key）。'
+          ? '开启后口述先由 AI 整理成书面文本再插入：修同音字和标点、去赘词、应用口头改口（「不对，改成…」只留改后的说法），并参考卡片已有内容统一术语（需下方 DeepSeek Key）。'
           : '当前浏览器不支持语音识别，请在 Chrome / Edge 中使用语音输入。' }}
       </p>
 
