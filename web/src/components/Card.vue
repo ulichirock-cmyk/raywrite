@@ -13,7 +13,7 @@ import { pathStyle } from '../pathStyleStore'
 import { settings } from '../settingsStore'
 import { aiSettings } from '../aiStore'
 import { uploadFile, polishText, correctVoiceText } from '../api'
-import { useVoiceInput } from '../voice/useVoiceInput'
+import { useDictation } from '../voice/useDictation'
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -109,8 +109,9 @@ async function doPolish() {
 }
 
 // 语音输入：录音期间不动编辑器，实时转写显示在卡片底部的浮条里；点「完成」才把
-// 整段文本（可选先过一遍 AI 纠错）插到光标处——避免边识别边插还要追踪位置替换
-const voice = useVoiceInput()
+// 整段文本（可选先过一遍 AI 纠错）插到光标处——避免边识别边插还要追踪位置替换。
+// 引擎由 useDictation 按设置/环境选：浏览器内置识别 或 录音+云端 ASR（Electron 用）
+const voice = useDictation()
 const voiceCorrecting = ref(false)
 const voiceError = ref('')
 let voiceErrorTimer = null
@@ -128,11 +129,7 @@ watch(voice.error, (msg) => {
 })
 
 function startVoice() {
-  if (!voice.supported) {
-    showVoiceError('此浏览器不支持语音识别，请用 Chrome / Edge')
-    return
-  }
-  if (voiceCorrecting.value || voice.recording.value) return
+  if (voiceCorrecting.value || voice.recording.value || voice.busy.value) return
   voice.start(settings.voiceLang)
 }
 
@@ -175,7 +172,7 @@ function insertDictation(text) {
 const HOLD_MS = 400
 let pressAt = 0
 function onMicDown(e) {
-  if (voiceCorrecting.value) return
+  if (voiceCorrecting.value || voice.busy.value) return
   e.target.setPointerCapture?.(e.pointerId)
   if (!voice.recording.value) {
     pressAt = Date.now()
@@ -366,7 +363,7 @@ onBeforeUnmount(() => {
       <button
         class="btn quiet voice-btn"
         :class="{ recording: voice.recording.value }"
-        :disabled="voiceCorrecting"
+        :disabled="voiceCorrecting || voice.busy.value"
         :title="voice.recording.value ? '再点一下结束并插入' : '按住说话，松开插入；单击切换常开'"
         @pointerdown="onMicDown"
         @pointerup="onMicUp"
@@ -404,14 +401,15 @@ onBeforeUnmount(() => {
       </button>
       <button class="btn quiet danger" @click="emit('delete')">删除</button>
     </header>
-    <div v-if="voice.recording.value || voiceCorrecting" class="voice-bar">
-      <span class="voice-dot" :class="{ thinking: voiceCorrecting }"></span>
+    <div v-if="voice.recording.value || voice.busy.value || voiceCorrecting" class="voice-bar">
+      <span class="voice-dot" :class="{ thinking: voiceCorrecting || voice.busy.value }"></span>
       <span v-if="voiceCorrecting" class="voice-live">AI 纠错中…</span>
+      <span v-else-if="voice.busy.value" class="voice-live">语音转写中…</span>
       <span v-else class="voice-live">
         {{ voice.finals.value }}<i class="voice-interim">{{ voice.interim.value }}</i>
         <span v-if="!voice.finals.value && !voice.interim.value" class="voice-interim">正在听，请说话…</span>
       </span>
-      <template v-if="!voiceCorrecting">
+      <template v-if="voice.recording.value">
         <button class="btn quiet voice-done" @click="finishVoice">完成并插入</button>
         <button class="btn quiet danger" @click="cancelVoice">取消</button>
       </template>

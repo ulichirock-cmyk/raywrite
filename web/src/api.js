@@ -44,6 +44,27 @@ export async function saveApiKey(deepseekApiKey) {
   return res.json()
 }
 
+export async function saveAsrApiKey(siliconflowApiKey) {
+  const res = await fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ siliconflowApiKey }),
+  })
+  if (!res.ok) throw new Error(`保存失败: ${res.status}`)
+  return res.json()
+}
+
+export async function transcribeAudio(blob) {
+  const res = await fetch('/api/transcribe', {
+    method: 'POST',
+    headers: { 'content-type': blob.type || 'audio/webm' },
+    body: blob,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `转写失败: ${res.status}`)
+  return data.text
+}
+
 export async function correctVoiceText(text, context = '') {
   const res = await fetch('/api/voice-correct', {
     method: 'POST',

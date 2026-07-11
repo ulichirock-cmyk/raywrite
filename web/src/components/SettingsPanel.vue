@@ -1,10 +1,9 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { settings, FONT_OPTIONS, VOICE_LANG_OPTIONS } from '../settingsStore'
-import { voiceSupported } from '../voice/useVoiceInput'
+import { settings, FONT_OPTIONS, VOICE_LANG_OPTIONS, VOICE_ENGINE_OPTIONS } from '../settingsStore'
 import { keyFromCode, formatAccelerator } from '../shortcutKeys'
 import { aiSettings, refreshAiSettings } from '../aiStore'
-import { saveApiKey } from '../api'
+import { saveApiKey, saveAsrApiKey } from '../api'
 
 const open = ref(false)
 const root = ref(null)
@@ -123,6 +122,42 @@ async function onClearApiKey() {
     apiKeySaving.value = false
   }
 }
+
+// SiliconFlow Key（云端语音转写用），交互与 DeepSeek Key 完全一致
+const asrKeyInput = ref('')
+const asrKeySaving = ref(false)
+const asrKeySaved = ref(false)
+
+async function onSaveAsrKey() {
+  const key = asrKeyInput.value.trim()
+  if (!key || asrKeySaving.value) return
+  asrKeySaving.value = true
+  try {
+    await saveAsrApiKey(key)
+    await refreshAiSettings()
+    asrKeyInput.value = ''
+    asrKeySaved.value = true
+    setTimeout(() => (asrKeySaved.value = false), 1600)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    asrKeySaving.value = false
+  }
+}
+
+async function onClearAsrKey() {
+  if (asrKeySaving.value) return
+  asrKeySaving.value = true
+  try {
+    await saveAsrApiKey('')
+    await refreshAiSettings()
+    asrKeyInput.value = ''
+  } catch (e) {
+    console.error(e)
+  } finally {
+    asrKeySaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -175,6 +210,25 @@ async function onClearApiKey() {
       <p class="settings-hint">开启后过长的卡片会折叠显示，底部可展开/收起。</p>
 
       <div class="settings-item">
+        <label>语音识别引擎</label>
+        <div class="seg">
+          <button
+            v-for="o in VOICE_ENGINE_OPTIONS"
+            :key="o.key"
+            class="seg-btn"
+            :class="{ on: settings.voiceEngine === o.key }"
+            @click="settings.voiceEngine = o.key"
+          >
+            {{ o.label }}
+          </button>
+        </div>
+      </div>
+      <p class="settings-hint">
+        自动 = 浏览器里用内置识别（实时转写，仅 Chrome/Edge），Electron 客户端里用云端 API
+        （录完整段再转写，需下方 SiliconFlow Key）。
+      </p>
+
+      <div class="settings-item">
         <label>语音输入识别语言</label>
         <div class="seg">
           <button
@@ -194,9 +248,8 @@ async function onClearApiKey() {
         <input v-model="settings.voiceCorrect" type="checkbox" />
       </div>
       <p class="settings-hint">
-        {{ voiceSupported
-          ? '开启后口述先由 AI 整理成书面文本再插入：修同音字和标点、去赘词、应用口头改口（「不对，改成…」只留改后的说法），并参考卡片已有内容统一术语（需下方 DeepSeek Key）。'
-          : '当前浏览器不支持语音识别，请在 Chrome / Edge 中使用语音输入。' }}
+        开启后口述先由 AI 整理成书面文本再插入：修同音字和标点、去赘词、应用口头改口
+        （「不对，改成…」只留改后的说法），并参考卡片已有内容统一术语（需下方 DeepSeek Key）。
       </p>
 
       <div v-if="shortcutApi" class="settings-item">
@@ -240,6 +293,40 @@ async function onClearApiKey() {
         <p class="settings-hint">
           {{ aiSettings.hasApiKey ? '已配置，卡片右上角可用「AI 整理」。' : '配置后卡片才能用「AI 整理」。' }}
           Key 只存本地，不会上传。
+        </p>
+      </div>
+
+      <div class="settings-item">
+        <label>SiliconFlow API Key（云端语音转写用）</label>
+        <div class="apikey-row">
+          <input
+            v-model="asrKeyInput"
+            type="password"
+            class="apikey-input"
+            autocomplete="off"
+            :placeholder="aiSettings.hasAsrKey ? '已设置，输入新的可覆盖' : 'sk-...'"
+            @keydown.enter="onSaveAsrKey"
+          />
+          <button
+            class="btn quiet apikey-save"
+            :disabled="!asrKeyInput.trim() || asrKeySaving"
+            @click="onSaveAsrKey"
+          >
+            {{ asrKeySaved ? '已保存 ✓' : '保存' }}
+          </button>
+          <button
+            v-if="aiSettings.hasAsrKey"
+            class="btn quiet apikey-save"
+            :disabled="asrKeySaving"
+            title="删除已保存的 Key"
+            @click="onClearAsrKey"
+          >
+            清除
+          </button>
+        </div>
+        <p class="settings-hint">
+          Electron 客户端里语音输入必须配这个（浏览器内置识别在客户端不可用）。
+          到 cloud.siliconflow.cn 注册即得，SenseVoice 转写价格极低。Key 只存本地。
         </p>
       </div>
     </div>

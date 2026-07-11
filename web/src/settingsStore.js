@@ -7,9 +7,11 @@ const defaults = {
   fontFamily: 'mono',
   fontSize: 15,
   collapseLong: false,
-  // 语音输入：转写完成后是否过一遍 AI 纠错（同音字/标点/赘词），及识别语言
+  // 语音输入：转写完成后是否过一遍 AI 纠错（同音字/标点/赘词）、识别语言、
+  // 识别引擎（auto=浏览器里用内置识别，Electron 里用云端 API）
   voiceCorrect: true,
   voiceLang: 'zh-CN',
+  voiceEngine: 'auto',
 }
 
 function load() {
@@ -22,6 +24,12 @@ function load() {
 
 export const settings = reactive(load())
 watch(settings, (v) => localStorage.setItem(KEY, JSON.stringify(v)))
+
+export const VOICE_ENGINE_OPTIONS = [
+  { key: 'auto', label: '自动' },
+  { key: 'browser', label: '浏览器内置' },
+  { key: 'api', label: '云端 API' },
+]
 
 export const VOICE_LANG_OPTIONS = [
   { key: 'zh-CN', label: '中文' },

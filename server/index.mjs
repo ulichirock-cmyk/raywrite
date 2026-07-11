@@ -19,6 +19,10 @@ const CARDS_FILE = path.join(DATA_DIR, 'cards.json')
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json')
 const PORT = process.env.PORT || 7777
 const POLISH_MODEL = 'deepseek-v4-flash'
+// 云端语音转写（Electron 壳里没有浏览器内置语音识别，走这条路）：SiliconFlow 的
+// SenseVoice，OpenAI audio/transcriptions 兼容接口，自动识别中英、自带标点
+const ASR_URL = 'https://api.siliconflow.cn/v1/audio/transcriptions'
+const ASR_MODEL = 'FunAudioLLM/SenseVoiceSmall'
 const POLISH_SYSTEM_PROMPT = `你是一个提示词编辑助手。用户会给你一段写给 AI coding agent（比如 Claude Code）的粗略笔记，
 可能杂乱、口语化、不完整。把它整理成一段清晰、结构化、可直接使用的提示词：明确目标、必要背景、约束条件，去掉多余口语，
 但不要凭空编造用户没提到的信息。保持原文使用的语言（中文原文就用中文整理，英文原文就用英文整理）。
@@ -124,8 +128,13 @@ function writeSettings(patch) {
 }
 
 // 只回报「有没有配」，API Key 本身不回传给前端——没必要让它在网络响应里再走一趟
+function settingsSummary() {
+  const s = readSettings()
+  return { hasApiKey: Boolean(s.deepseekApiKey), hasAsrKey: Boolean(s.siliconflowApiKey) }
+}
+
 app.get('/api/settings', (_req, res) => {
-  res.json({ hasApiKey: Boolean(readSettings().deepseekApiKey) })
+  res.json(settingsSummary())
 })
 
 app.put('/api/settings', express.json(), (req, res) => {
@@ -133,7 +142,10 @@ app.put('/api/settings', express.json(), (req, res) => {
   if (typeof req.body?.deepseekApiKey === 'string') {
     writeSettings({ deepseekApiKey: req.body.deepseekApiKey.trim() })
   }
-  res.json({ hasApiKey: Boolean(readSettings().deepseekApiKey) })
+  if (typeof req.body?.siliconflowApiKey === 'string') {
+    writeSettings({ siliconflowApiKey: req.body.siliconflowApiKey.trim() })
+  }
+  res.json(settingsSummary())
 })
 
 // 把卡片草稿丢给 DeepSeek 整理成结构清晰的提示词；chip（图片/文件）在发给前端前已
@@ -175,6 +187,42 @@ app.post('/api/polish', express.json({ limit: '1mb' }), async (req, res) => {
     res.json({ text: polished })
   } catch (err) {
     const msg = err?.name === 'TimeoutError' ? 'AI 请求超时' : String(err?.message || err)
+    res.status(502).json({ error: msg })
+  }
+})
+
+// 云端语音转写：录音二进制直传（同 /api/upload 的风格，非 multipart），这里再包成
+// multipart 转发给 SiliconFlow。给没有浏览器内置语音识别的环境用（Electron/Firefox）
+app.post('/api/transcribe', express.raw({ type: () => true, limit: '50mb' }), async (req, res) => {
+  const buf = req.body
+  if (!Buffer.isBuffer(buf) || buf.length < 1000) {
+    return res.status(400).json({ error: '没有录到有效声音' })
+  }
+  const apiKey = readSettings().siliconflowApiKey
+  if (!apiKey) return res.status(400).json({ error: '还没在设置里填 SiliconFlow API Key' })
+  const mime = req.headers['content-type'] || 'audio/webm'
+  const ext = mime.includes('ogg') ? 'ogg' : mime.includes('mp4') ? 'mp4' : mime.includes('wav') ? 'wav' : 'webm'
+
+  try {
+    const form = new FormData()
+    form.append('model', ASR_MODEL)
+    form.append('file', new Blob([buf], { type: mime }), `audio.${ext}`)
+    const r = await fetch(ASR_URL, {
+      method: 'POST',
+      signal: AbortSignal.timeout(120_000),
+      headers: { authorization: `Bearer ${apiKey}` },
+      body: form,
+    })
+    if (!r.ok) {
+      const detail = await r.text().catch(() => '')
+      return res.status(502).json({ error: `转写请求失败（HTTP ${r.status}）`, detail })
+    }
+    const data = await r.json()
+    const text = String(data.text ?? '').trim()
+    if (!text) return res.status(502).json({ error: '没有识别出内容' })
+    res.json({ text })
+  } catch (err) {
+    const msg = err?.name === 'TimeoutError' ? '转写请求超时' : String(err?.message || err)
     res.status(502).json({ error: msg })
   }
 })
