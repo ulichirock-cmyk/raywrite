@@ -1,6 +1,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { settings, FONT_OPTIONS } from '../settingsStore'
+import { settings, FONT_OPTIONS, VOICE_LANG_OPTIONS } from '../settingsStore'
+import { voiceSupported } from '../voice/useVoiceInput'
 import { keyFromCode, formatAccelerator } from '../shortcutKeys'
 import { aiSettings, refreshAiSettings } from '../aiStore'
 import { saveApiKey } from '../api'
@@ -172,6 +173,31 @@ async function onClearApiKey() {
         <input v-model="settings.collapseLong" type="checkbox" />
       </div>
       <p class="settings-hint">开启后过长的卡片会折叠显示，底部可展开/收起。</p>
+
+      <div class="settings-item">
+        <label>语音输入识别语言</label>
+        <div class="seg">
+          <button
+            v-for="o in VOICE_LANG_OPTIONS"
+            :key="o.key"
+            class="seg-btn"
+            :class="{ on: settings.voiceLang === o.key }"
+            @click="settings.voiceLang = o.key"
+          >
+            {{ o.label }}
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-item row">
+        <label>语音输入 AI 纠错</label>
+        <input v-model="settings.voiceCorrect" type="checkbox" />
+      </div>
+      <p class="settings-hint">
+        {{ voiceSupported
+          ? '开启后语音转写先由 AI 修正同音字、标点和口语赘词再插入（需下方 DeepSeek Key）。'
+          : '当前浏览器不支持语音识别，请在 Chrome / Edge 中使用语音输入。' }}
+      </p>
 
       <div v-if="shortcutApi" class="settings-item">
         <label>全局热键（呼出窗口）</label>

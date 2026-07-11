@@ -12,7 +12,8 @@ import { serializeForAI, buildDocFromAIText } from '../editor/aiPolish'
 import { pathStyle } from '../pathStyleStore'
 import { settings } from '../settingsStore'
 import { aiSettings } from '../aiStore'
-import { uploadFile, polishText } from '../api'
+import { uploadFile, polishText, correctVoiceText } from '../api'
+import { useVoiceInput } from '../voice/useVoiceInput'
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -105,6 +106,58 @@ async function doPolish() {
     if (editor.value && !editor.value.isDestroyed) editor.value.setEditable(true)
     polishing.value = false
   }
+}
+
+// 语音输入：录音期间不动编辑器，实时转写显示在卡片底部的浮条里；点「完成」才把
+// 整段文本（可选先过一遍 AI 纠错）插到光标处——避免边识别边插还要追踪位置替换
+const voice = useVoiceInput()
+const voiceCorrecting = ref(false)
+const voiceError = ref('')
+let voiceErrorTimer = null
+
+function showVoiceError(msg) {
+  voiceError.value = msg
+  clearTimeout(voiceErrorTimer)
+  voiceErrorTimer = setTimeout(() => (voiceError.value = ''), 5000)
+}
+
+// 识别服务自己出错终止时（权限拒绝、环境不支持等）没有经过 toggleVoice 的
+// stop 流程，这里兜住把错误浮到卡片头部
+watch(voice.error, (msg) => {
+  if (msg) showVoiceError(msg)
+})
+
+async function toggleVoice() {
+  if (!voice.supported) {
+    showVoiceError('此浏览器不支持语音识别，请用 Chrome / Edge')
+    return
+  }
+  if (voiceCorrecting.value) return
+  if (!voice.recording.value) {
+    voice.start(settings.voiceLang)
+    return
+  }
+  const raw = (await voice.stop()).trim()
+  if (voice.error.value) showVoiceError(voice.error.value)
+  if (!raw) return
+  let text = raw
+  if (settings.voiceCorrect && aiSettings.hasApiKey) {
+    voiceCorrecting.value = true
+    try {
+      text = (await correctVoiceText(raw)).trim() || raw
+    } catch (e) {
+      console.error(e)
+      // 纠错挂了不吞用户的话——照插原始转写，只提示纠错没成
+      showVoiceError(`AI 纠错失败，已插入原始转写：${e?.message || ''}`)
+    } finally {
+      voiceCorrecting.value = false
+    }
+  }
+  editor.value?.chain().focus().insertContent(text).run()
+}
+
+function cancelVoice() {
+  voice.cancel()
 }
 
 const isEmptyPara = (node) => node?.type.name === 'paragraph' && node.content.size === 0
@@ -258,6 +311,8 @@ onBeforeUnmount(() => {
   clearTimeout(copiedTimer)
   clearTimeout(errorTimer)
   clearTimeout(polishErrorTimer)
+  clearTimeout(voiceErrorTimer)
+  voice.cancel()
   resizeOb?.disconnect()
   editor.value?.destroy()
 })
@@ -271,8 +326,32 @@ onBeforeUnmount(() => {
       <span v-if="uploading" class="meta busy">上传中…</span>
       <span v-if="uploadError" class="meta upload-error">{{ uploadError }}</span>
       <span v-if="polishError" class="meta upload-error">{{ polishError }}</span>
+      <span v-if="voiceError" class="meta upload-error">{{ voiceError }}</span>
       <span class="spacer"></span>
       <span v-if="charCount" class="meta">{{ charCount }} 字</span>
+      <button
+        class="btn quiet voice-btn"
+        :class="{ recording: voice.recording.value }"
+        :disabled="voiceCorrecting"
+        :title="voice.recording.value ? '停止录音并插入' : '语音输入（说完再点一次插入文本）'"
+        @click="toggleVoice"
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="9" y="2" width="6" height="12" rx="3" />
+          <path d="M5 10a7 7 0 0 0 14 0" />
+          <line x1="12" y1="19" x2="12" y2="22" />
+        </svg>
+        {{ voice.recording.value ? '录音中' : '语音' }}
+      </button>
       <button
         class="btn quiet"
         :disabled="!charCount || polishing || !aiSettings.hasApiKey"
@@ -289,6 +368,18 @@ onBeforeUnmount(() => {
       </button>
       <button class="btn quiet danger" @click="emit('delete')">删除</button>
     </header>
+    <div v-if="voice.recording.value || voiceCorrecting" class="voice-bar">
+      <span class="voice-dot" :class="{ thinking: voiceCorrecting }"></span>
+      <span v-if="voiceCorrecting" class="voice-live">AI 纠错中…</span>
+      <span v-else class="voice-live">
+        {{ voice.finals.value }}<i class="voice-interim">{{ voice.interim.value }}</i>
+        <span v-if="!voice.finals.value && !voice.interim.value" class="voice-interim">正在听，请说话…</span>
+      </span>
+      <template v-if="!voiceCorrecting">
+        <button class="btn quiet voice-done" @click="toggleVoice">完成并插入</button>
+        <button class="btn quiet danger" @click="cancelVoice">取消</button>
+      </template>
+    </div>
     <EditorContent :editor="editor" class="editor-wrap" :class="{ collapsed }" />
     <button
       v-if="settings.collapseLong && overflowing"

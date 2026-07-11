@@ -1037,3 +1037,70 @@ body {
     animation: none;
   }
 }
+
+/* ---- 语音输入 ---- */
+.voice-btn svg {
+  vertical-align: -2px;
+  margin-right: 2px;
+}
+
+.voice-btn.recording {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.voice-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 12px 0;
+  padding: 6px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.voice-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: voice-pulse 1.2s ease-in-out infinite;
+}
+
+.voice-dot.thinking {
+  background: var(--accent);
+}
+
+@keyframes voice-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-dot {
+    animation: none;
+  }
+}
+
+.voice-live {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  max-height: 72px;
+  overflow-y: auto;
+}
+
+.voice-interim {
+  font-style: normal;
+  color: var(--muted);
+}
+
+.voice-done {
+  flex: none;
+  color: var(--accent);
+}

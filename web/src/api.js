@@ -44,6 +44,17 @@ export async function saveApiKey(deepseekApiKey) {
   return res.json()
 }
 
+export async function correctVoiceText(text) {
+  const res = await fetch('/api/voice-correct', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `纠错失败: ${res.status}`)
+  return data.text
+}
+
 export async function polishText(text) {
   const res = await fetch('/api/polish', {
     method: 'POST',
